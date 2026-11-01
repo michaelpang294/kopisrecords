@@ -36,7 +36,7 @@ export default function StoreHeader() {
         Skip to content
       </a>
 
-      <div className="mx-auto grid w-[calc(100%-36px)] max-w-[1320px] grid-cols-[1fr_auto] grid-rows-[68px_auto] items-center gap-x-4 min-[641px]:w-[calc(100%-48px)] min-[641px]:grid-rows-[80px] min-[641px]:gap-x-6 min-[1001px]:w-[calc(100%-80px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px]">
+      <div className="mx-auto grid w-[calc(100%-36px)] max-w-[1320px] grid-cols-[1fr_auto] grid-rows-[56px_auto] items-center gap-x-4 min-[641px]:w-[calc(100%-48px)] min-[641px]:grid-rows-[80px] min-[641px]:gap-x-6 min-[1001px]:w-[calc(100%-80px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px]">
         <Link
           to="/"
           className={`${type.brand} col-start-1 row-start-1 justify-self-start whitespace-nowrap text-[#efe8dc] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4`}

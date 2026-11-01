@@ -35,6 +35,27 @@ const tagLabels: Record<string, string> = {
   sale: "On Sale",
 };
 
+const sortOptions = [
+  { value: "default", label: "Catalogue order" },
+  ...tagSortOptions,
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+  { value: "artist", label: "Artist: A–Z" },
+  { value: "title", label: "Album: A–Z" },
+];
+
+// Compact card typography on mobile; the regular scale returns on desktop.
+const cardText = {
+  artist:
+    "font-[family-name:Arial,sans-serif] text-[10px] leading-[1.35] sm:text-xs lg:text-sm lg:leading-6",
+  title:
+    "font-[family-name:Marcellus,Georgia,serif] text-[11px] font-normal leading-[1.3] sm:text-sm lg:text-xl lg:leading-[1.35]",
+  meta: "font-[family-name:Arial,sans-serif] text-[9px] leading-[1.35] sm:text-[10px] lg:text-xs lg:leading-5",
+  price:
+    "font-[family-name:Arial,sans-serif] text-[11px] font-medium leading-4 sm:text-xs lg:text-sm lg:leading-6",
+  pill: "font-[family-name:Arial,sans-serif] text-[8px] leading-[1.25] sm:text-[9px] lg:text-xs lg:leading-5",
+};
+
 // MySQL JSON fields may arrive as an array or as a JSON-encoded string.
 function normaliseTags(value: unknown): string[] {
   let parsed: unknown = value;
@@ -65,7 +86,7 @@ const filterScrollbar = [
   "[&::-webkit-scrollbar-thumb:hover]:bg-[#cbb79c99]",
 ].join(" ");
 function money(value: number) {
-  return Number.isFinite(value) ? `S$${value.toFixed(2)}` : "Price unavailable";
+  return Number.isFinite(value) ? `$${value.toFixed(2)}` : "Price unavailable";
 }
 
 function splitGenres(product: Product) {
@@ -96,9 +117,12 @@ function makeOptions(products: Product[], getValues: (p: Product) => string[]) {
 
 function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details open={title !== "Genre"} className="group border-b border-white/10 py-5 last:border-b-0">
+    <details
+      open={title !== "Genre"}
+      className="group border-b border-white/10 py-3 last:border-b-0 lg:py-5"
+    >
       <summary
-        className={`${type.ui} ${focus} flex cursor-pointer list-none items-center justify-between gap-3 text-[#efe8dc] [&::-webkit-details-marker]:hidden`}
+        className={`${type.ui} ${focus} flex cursor-pointer list-none items-center justify-between gap-3 text-[#efe8dc] max-lg:text-xs [&::-webkit-details-marker]:hidden`}
       >
         {title}
         <ChevronDown
@@ -107,7 +131,7 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
           className="shrink-0 text-[#cbb79c] transition-transform group-open:rotate-180 motion-reduce:transition-none"
         />
       </summary>
-      <div className="pt-4">{children}</div>
+      <div className="pt-2 lg:pt-4">{children}</div>
     </details>
   );
 }
@@ -123,7 +147,7 @@ function RecordCard({ product }: { product: TaggedProduct }) {
         to={`/shop/product/${product.id}`}
         className={`${focus} group flex h-full flex-col rounded-sm text-[#efe8dc] no-underline`}
       >
-        <div className="relative mb-4 aspect-square overflow-hidden bg-[#28231d]">
+        <div className="relative mb-2 aspect-square overflow-hidden bg-[#28231d] lg:mb-4">
           {product.cover_image && !failed ? (
             <img
               src={product.cover_image}
@@ -138,19 +162,25 @@ function RecordCard({ product }: { product: TaggedProduct }) {
               role="img"
               aria-label="Cover unavailable"
             >
-              <Disc3 size={52} strokeWidth={1} aria-hidden="true" />
+              <Disc3
+                size={52}
+                strokeWidth={1}
+                aria-hidden="true"
+                className="h-7 w-7 lg:h-[52px] lg:w-[52px]"
+              />
             </div>
           )}
 
           {tags.length > 0 && (
             <ul
               aria-label="Record tags"
-              className="pointer-events-none absolute inset-x-2 top-2 z-10 m-0 flex list-none flex-wrap items-start gap-1.5 p-0"
+              className="pointer-events-none absolute inset-x-1 top-1 z-10 m-0 flex list-none flex-wrap items-start gap-0.5 p-0 lg:inset-x-2 lg:top-2 lg:gap-1.5"
             >
               {tags.map((tag) => (
                 <li
                   key={tag}
-                  className={`${type.meta} max-w-full rounded-full border border-[#cbb79c]/20 bg-[#211b16]/80 px-2.5 py-0.5 text-left text-[#efe8dc] [overflow-wrap:anywhere]`}
+                  title={tagLabels[tag] || tag.replace(/_/g, " ")}
+                  className={`${cardText.pill} max-w-full truncate rounded-full border border-[#cbb79c]/20 bg-[#211b16]/80 px-1 py-0.5 text-left text-[#efe8dc] lg:px-2.5`}
                 >
                   {tagLabels[tag] || tag.replace(/_/g, " ")}
                 </li>
@@ -160,34 +190,40 @@ function RecordCard({ product }: { product: TaggedProduct }) {
 
           {!inStock && (
             <span
-              className={`${type.meta} absolute bottom-2 left-2 bg-[#15120f]/95 px-2 py-1 text-[#efe8dc]`}
+              className={`${cardText.pill} absolute bottom-1 left-1 bg-[#15120f]/95 px-1 py-0.5 text-[#efe8dc] lg:bottom-2 lg:left-2 lg:px-2 lg:py-1`}
             >
               Sold out
             </span>
           )}
         </div>
 
-        <p className={`${type.small} m-0 mb-1 text-[#c0b4a3] [overflow-wrap:anywhere]`}>
+        <p
+          title={product.artist}
+          className={`${cardText.artist} m-0 mb-0.5 line-clamp-1 text-[#c0b4a3] [overflow-wrap:anywhere] lg:mb-1 lg:line-clamp-none`}
+        >
           {product.artist}
         </p>
         <h3
-          className={`${type.itemTitle} m-0 mb-2 text-[#efe8dc] [overflow-wrap:anywhere]`}
+          title={product.title}
+          className={`${cardText.title} m-0 mb-1 line-clamp-2 min-h-[2.6em] text-[#efe8dc] [overflow-wrap:anywhere] lg:mb-2 lg:line-clamp-none lg:min-h-0`}
         >
           {product.title}
         </h3>
-        <p className={`${type.meta} m-0 mb-4 text-[#c0b4a3] [overflow-wrap:anywhere]`}>
+        <p
+          className={`${cardText.meta} m-0 mb-1.5 line-clamp-1 text-[#c0b4a3] [overflow-wrap:anywhere] lg:mb-4 lg:line-clamp-none`}
+        >
           {[product.medium, product.variant].filter(Boolean).join(" · ")}
         </p>
 
-        <div className="mt-auto border-t border-white/10 pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <strong className={`${type.ui} text-[#efe8dc]`}>
+        <div className="mt-auto border-t border-white/10 pt-1.5 lg:pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-1 lg:gap-2">
+            <strong className={`${cardText.price} text-[#efe8dc]`}>
               {money(Number(product.price))}
             </strong>
-            <ArrowUpRight size={16} aria-hidden="true" className="text-[#cbb79c]" />
+            <ArrowUpRight size={16} aria-hidden="true" className="hidden text-[#cbb79c] lg:block" />
           </div>
           <p
-            className={`${type.meta} m-0 mt-1 ${inStock ? "text-[#cbb79c]" : "text-[#c0b4a3]"}`}
+            className={`${cardText.meta} m-0 mt-0.5 lg:mt-1 ${inStock ? "text-[#cbb79c]" : "text-[#c0b4a3]"}`}
           >
             {inStock ? "In stock" : "Sold out"}
           </p>
@@ -268,9 +304,7 @@ export default function ShopPage() {
   }
 
   function toggleOption(key: "genre" | "format", value: string, checked: boolean) {
-    const next = params
-      .getAll(key)
-      .filter((item) => item.toLowerCase() !== value.toLowerCase());
+    const next = params.getAll(key).filter((item) => item.toLowerCase() !== value.toLowerCase());
     if (checked) next.push(value);
     updateParams({ [key]: next });
   }
@@ -297,9 +331,7 @@ export default function ShopPage() {
       if ((params.get("stock") ?? "in") === "in" && Number(product.stock) <= 0) return false;
       if (
         selectedGenres.length &&
-        !splitGenres(product).some((genre) =>
-          selectedGenres.includes(genre.toLowerCase()),
-        )
+        !splitGenres(product).some((genre) => selectedGenres.includes(genre.toLowerCase()))
       )
         return false;
       if (
@@ -361,10 +393,7 @@ export default function ShopPage() {
   const start = (page - 1) * PAGE_SIZE;
   const visibleProducts = filtered.slice(start, start + PAGE_SIZE);
   const filterCount =
-    genres.length +
-    formats.length +
-    Number(inStockOnly) +
-    Number(Boolean(minValue || maxValue));
+    genres.length + formats.length + Number(inStockOnly) + Number(Boolean(minValue || maxValue));
   const hasFilters = filterCount > 0 || query.trim().length > 0;
 
   function goToPage(next: number) {
@@ -420,11 +449,11 @@ export default function ShopPage() {
       />
       <main
         id="main-content"
-        className="mx-auto max-w-[1600px] px-[18px] pb-14 pt-7 sm:px-6 sm:pt-10 lg:px-10 lg:pb-20"
+        className="mx-auto max-w-[1600px] px-3 pb-8 pt-4 sm:px-4 sm:pt-5 lg:px-10 lg:pb-20 lg:pt-10"
       >
         <nav
           aria-label="Breadcrumb"
-          className={`${type.small} mb-8 flex items-center gap-3 text-[#c0b4a3]`}
+          className={`${type.small} mb-4 flex items-center gap-2 text-[#c0b4a3] max-lg:text-[11px] max-lg:leading-4 lg:mb-8 lg:gap-3`}
         >
           <Link to="/" className={`${focus} hover:text-[#efe8dc]`}>
             Home
@@ -434,11 +463,11 @@ export default function ShopPage() {
             Shop
           </span>
         </nav>
-        <div className="relative mb-8 sm:mb-10">
+        <div className="relative mb-4 lg:mb-10">
           <Search
             size={20}
             aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#cbb79c]"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#cbb79c] lg:left-4 lg:h-5 lg:w-5"
           />
           <input
             type="search"
@@ -446,38 +475,60 @@ export default function ShopPage() {
             placeholder="Search artists, albums, or barcodes…"
             value={query}
             onChange={(event) => updateParams({ q: event.target.value }, true, true)}
-            className={`${type.body} min-h-14 w-full rounded-md border border-white/10 bg-[#211b16] py-3 pl-12 pr-4 text-[#15120F] placeholder:text-[#c0b4a3] focus:border-[#cbb79c] focus:outline-none focus:ring-2 focus:ring-[#cbb79c]/20`}
+            className={`${type.body} min-h-11 w-full rounded-md border border-white/15 bg-[#211b16]! py-2 pl-9 pr-3 text-[#efe8dc]! placeholder:text-[13px] placeholder:text-[#c0b4a3] focus:border-[#cbb79c] focus:outline-none focus:ring-2 focus:ring-[#cbb79c]/20 lg:min-h-14 lg:py-3 lg:pl-12 lg:pr-4 lg:placeholder:text-base`}
           />
         </div>
 
-        <div className="mb-5 flex items-center justify-between border-y border-white/10 py-3 lg:hidden">
+        <div className="mb-3 flex items-center gap-2 lg:hidden">
           <button
             type="button"
             onClick={() => setFiltersOpen((value) => !value)}
             aria-expanded={filtersOpen}
             aria-controls="shop-filters"
-            className={`${type.ui} ${focus} inline-flex min-h-11 items-center gap-3 rounded-md border border-white/15 bg-[#211b16] px-4 text-[#efe8dc]`}
+            className={`${type.ui} ${focus} inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md border bg-[#211b16] px-3 text-[#efe8dc] max-lg:text-xs ${filtersOpen ? "border-[#cbb79c]" : "border-white/15"}`}
           >
             <SlidersHorizontal size={16} aria-hidden="true" />
-            {filtersOpen ? "Hide filters" : "Filters"}
+            Filters
             {filterCount > 0 && (
               <span
-                className={`${type.meta} rounded-full bg-[#cbb79c] px-2 text-[#15120f]`}
+                className={`${type.meta} min-w-4 rounded-full bg-[#cbb79c] px-1.5 text-center text-[#15120f] max-lg:text-[10px]`}
               >
                 {filterCount}
               </span>
             )}
           </button>
+          <label htmlFor="shop-sort-mobile" className="sr-only">
+            Sort records
+          </label>
+          <div className="relative min-w-0 flex-1">
+            <select
+              id="shop-sort-mobile"
+              value={sort}
+              onChange={(event) => updateParams({ sort: event.target.value })}
+              className={`${focus} min-h-11 w-full min-w-0 appearance-none rounded-md border border-white/15 bg-[#211b16] py-2 pl-3 pr-8 font-[family-name:Arial,sans-serif] text-xs font-medium text-[#efe8dc]`}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#cbb79c]"
+            />
+          </div>
         </div>
 
-        <div className="grid items-start gap-7 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[240px_minmax(0,1fr)] xl:gap-10">
+        <div className="grid items-start gap-3 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[240px_minmax(0,1fr)] xl:gap-10">
           <aside
             id="shop-filters"
             aria-labelledby="filters-title"
-            className={`${filterScrollbar} ${filtersOpen ? "block" : "hidden"} self-start rounded-md border border-white/10 bg-[#211b16] p-5 lg:sticky lg:top-[105px] lg:block lg:max-h-[calc(100vh-129px)] lg:overflow-y-auto lg:supports-[height:100svh]:max-h-[calc(100svh-129px)]`}
+            className={`${filterScrollbar} ${filtersOpen ? "block" : "hidden"} self-start rounded-md border border-white/10 bg-[#211b16] p-3 lg:sticky lg:top-[105px] lg:block lg:max-h-[calc(100vh-129px)] lg:overflow-y-auto lg:p-5 lg:supports-[height:100svh]:max-h-[calc(100svh-129px)]`}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-              <h2 id="filters-title" className={`${type.itemTitle} m-0`}>
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 lg:pb-4">
+              <h2 id="filters-title" className={`${type.itemTitle} m-0 max-lg:text-base`}>
                 Filters
               </h2>
               {hasFilters && (
@@ -500,14 +551,10 @@ export default function ShopPage() {
                   <input
                     type="checkbox"
                     checked={formats.includes(option.value)}
-                    onChange={(event) =>
-                      toggleOption("format", option.value, event.target.checked)
-                    }
+                    onChange={(event) => toggleOption("format", option.value, event.target.checked)}
                     className="h-4 w-4 shrink-0 accent-[#cbb79c]"
                   />
-                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                    {option.label}
-                  </span>
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{option.label}</span>
                   <span className={type.meta}>{option.count}</span>
                 </label>
               ))}
@@ -525,9 +572,7 @@ export default function ShopPage() {
                 <input
                   type="checkbox"
                   checked={inStockOnly}
-                  onChange={(event) =>
-                    updateParams({ stock: event.target.checked ? "in" : "all" })
-                  }
+                  onChange={(event) => updateParams({ stock: event.target.checked ? "in" : "all" })}
                   className="h-4 w-4 shrink-0 accent-[#cbb79c]"
                 />
                 In stock only
@@ -549,9 +594,7 @@ export default function ShopPage() {
                       }
                       className="h-4 w-4 shrink-0 accent-[#cbb79c]"
                     />
-                    <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                      {option.label}
-                    </span>
+                    <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{option.label}</span>
                     <span className={`${type.meta} text-[#c0b4a3]`}>{option.count}</span>
                   </label>
                 ))}
@@ -573,12 +616,12 @@ export default function ShopPage() {
             <h2 id="results-title" className="sr-only">
               Records
             </h2>
-            <div className="mb-6 flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-3 lg:mb-6 lg:gap-4 lg:pb-5">
               <div>
                 <p
                   role="status"
                   aria-live="polite"
-                  className={`${type.small} m-0 text-[#c0b4a3]`}
+                  className={`${type.small} m-0 text-[#c0b4a3] max-lg:text-[11px] max-lg:leading-4`}
                 >
                   {loading ? (
                     "Getting the crates ready…"
@@ -597,11 +640,8 @@ export default function ShopPage() {
                   )}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <label
-                  htmlFor="shop-sort"
-                  className={`${type.small} shrink-0 text-[#c0b4a3]`}
-                >
+              <div className="hidden items-center gap-3 lg:flex">
+                <label htmlFor="shop-sort" className={`${type.small} shrink-0 text-[#c0b4a3]`}>
                   Sort by
                 </label>
                 <div className="relative min-w-0 flex-1 sm:flex-none">
@@ -611,16 +651,11 @@ export default function ShopPage() {
                     onChange={(event) => updateParams({ sort: event.target.value })}
                     className={`${type.ui} min-h-11 w-full appearance-none rounded-md border border-white/15 bg-[#211b16] py-2 pl-3 pr-9 text-[#efe8dc] focus:border-[#cbb79c] focus:outline-none focus:ring-2 focus:ring-[#cbb79c]/20 sm:w-[185px]`}
                   >
-                    <option value="default">Catalogue order</option>
-                    {tagSortOptions.map((option) => (
+                    {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
                     ))}
-                    <option value="price-asc">Price: low to high</option>
-                    <option value="price-desc">Price: high to low</option>
-                    <option value="artist">Artist: A–Z</option>
-                    <option value="title">Album: A–Z</option>
                   </select>
                   <ChevronDown
                     size={16}
@@ -633,7 +668,7 @@ export default function ShopPage() {
 
             {chips.length > 0 && (
               <div
-                className="mb-6 flex flex-wrap items-center gap-2"
+                className="mb-3 flex flex-wrap items-center gap-1.5 lg:mb-6 lg:gap-2"
                 aria-label="Applied filters"
               >
                 {chips.map((chip) => (
@@ -642,16 +677,20 @@ export default function ShopPage() {
                     type="button"
                     onClick={chip.remove}
                     aria-label={`Remove ${chip.label}`}
-                    className={`${type.meta} ${focus} inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#cbb79c]/25 bg-[#211b16] px-3 py-2 text-[#efe8dc] hover:border-[#cbb79c]`}
+                    className={`${type.meta} ${focus} inline-flex min-h-8 max-w-full items-center gap-1 rounded-full border border-[#cbb79c]/25 bg-[#211b16] px-2 py-1 text-[#efe8dc] hover:border-[#cbb79c] max-lg:text-[10px] max-lg:leading-4 lg:min-h-11 lg:gap-2 lg:px-3 lg:py-2`}
                   >
                     <span className="min-w-0 [overflow-wrap:anywhere]">{chip.label}</span>
-                    <X size={13} aria-hidden="true" className="shrink-0 text-[#cbb79c]" />
+                    <X
+                      size={13}
+                      aria-hidden="true"
+                      className="h-3 w-3 shrink-0 text-[#cbb79c] lg:h-[13px] lg:w-[13px]"
+                    />
                   </button>
                 ))}
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className={`${type.small} ${focus} min-h-11 px-2 text-[#cbb79c] underline underline-offset-4`}
+                  className={`${type.small} ${focus} min-h-8 px-2 text-[#cbb79c] underline underline-offset-4 max-lg:text-[11px] lg:min-h-11`}
                 >
                   Clear all
                 </button>
@@ -661,13 +700,13 @@ export default function ShopPage() {
             {loading ? (
               <div
                 aria-hidden="true"
-                className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 lg:grid-cols-5 xl:gap-x-5"
+                className="grid grid-cols-4 gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-6 lg:grid-cols-5 lg:gap-x-4 lg:gap-y-9 xl:gap-x-5"
               >
                 {Array.from({ length: 10 }, (_, index) => (
                   <div key={index} className="motion-safe:animate-pulse">
-                    <div className="mb-4 aspect-square bg-[#28231d]" />
-                    <div className="mb-3 h-3 w-2/3 bg-[#28231d]" />
-                    <div className="h-4 w-4/5 bg-[#28231d]" />
+                    <div className="mb-2 aspect-square bg-[#28231d] lg:mb-4" />
+                    <div className="mb-1.5 h-2 w-2/3 bg-[#28231d] lg:mb-3 lg:h-3" />
+                    <div className="h-2.5 w-4/5 bg-[#28231d] lg:h-4" />
                   </div>
                 ))}
               </div>
@@ -676,12 +715,8 @@ export default function ShopPage() {
                 role="alert"
                 className="rounded-md border border-white/10 bg-[#211b16] px-6 py-12 text-center"
               >
-                <h3 className={`${type.itemTitle} m-0 mb-3`}>
-                  The crates couldn’t load.
-                </h3>
-                <p className={`${type.body} m-0 text-[#c0b4a3]`}>
-                  Please try again in a moment.
-                </p>
+                <h3 className={`${type.itemTitle} m-0 mb-3`}>The crates couldn’t load.</h3>
+                <p className={`${type.body} m-0 text-[#c0b4a3]`}>Please try again in a moment.</p>
                 <button
                   type="button"
                   onClick={() => setAttempt((value) => value + 1)}
@@ -691,7 +726,7 @@ export default function ShopPage() {
                 </button>
               </div>
             ) : visibleProducts.length ? (
-              <div className="grid grid-cols-2 items-stretch gap-x-4 gap-y-9 sm:grid-cols-3 lg:grid-cols-5 xl:gap-x-5">
+              <div className="grid grid-cols-4 items-stretch gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-6 lg:grid-cols-5 lg:gap-x-4 lg:gap-y-9 xl:gap-x-5">
                 {visibleProducts.map((product) => (
                   <RecordCard key={product.id} product={product} />
                 ))}
@@ -725,7 +760,7 @@ export default function ShopPage() {
             {!loading && !error && filtered.length > 0 && (
               <nav
                 aria-label="Catalogue pagination"
-                className="mt-10 flex items-center justify-between gap-3 border-t border-white/10 pt-6"
+                className="mt-6 flex items-center justify-between gap-3 border-t border-white/10 pt-4 lg:mt-10 lg:pt-6"
               >
                 <button
                   type="button"

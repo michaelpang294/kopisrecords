@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, Disc3, Mail, Minus, Plus, ShoppingBag } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Disc3, Minus, Plus, ShoppingBag } from "lucide-react";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
 import type { Product } from "../scripts/picksOfTheWeek";
@@ -10,10 +10,14 @@ import { typography as type } from "../styles/typography";
 const CART_KEY = "kopisrecords-cart";
 const focus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4";
+// Keep legacy global p/a font rules from changing prices or body copy to serif.
+// Scoped to main content so the header and footer wordmarks keep their own fonts.
+const productFonts =
+  "[&_:is(p,a,button,input,label,dl)]:font-[family-name:Arial,sans-serif]! [&_:is(h1,h2,h3)]:font-[family-name:Marcellus,Georgia,serif]!";
 type CartItem = { id: number; quantity: number };
 
 function money(value: number) {
-  return Number.isFinite(value) ? `S$${value.toFixed(2)}` : "Price unavailable";
+  return Number.isFinite(value) ? `$${value.toFixed(2)}` : "Price unavailable";
 }
 
 function genresOf(product: Product) {
@@ -166,11 +170,11 @@ export default function ProductPage() {
 
       <main
         id="main-content"
-        className="mx-auto max-w-[1600px] px-[18px] pb-14 pt-7 sm:px-6 sm:pt-10 lg:px-10 lg:pb-20"
+        className={`${productFonts} mx-auto max-w-[1600px] px-3 pb-8 pt-4 sm:px-4 sm:pt-5 lg:px-10 lg:pb-20 lg:pt-10`}
       >
         <nav
           aria-label="Breadcrumb"
-          className={`${type.small} mb-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-[#c0b4a3]`}
+          className={`${type.small} mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[#c0b4a3] max-lg:text-xs max-lg:leading-[18px] lg:mb-8 lg:gap-x-3 lg:gap-y-2`}
         >
           <Link to="/" className={`${focus} hover:text-[#efe8dc]`}>
             Home
@@ -228,183 +232,186 @@ export default function ProductPage() {
           </section>
         ) : (
           <>
-            <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-10 xl:gap-16">
+            <div className="grid grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] items-start gap-3 sm:gap-5 lg:grid-cols-[1.1fr_1fr] lg:gap-10 xl:gap-16">
               {/* COVER */}
-              <div className="min-w-0 lg:sticky lg:top-[105px]">
-                <div className="rounded-md border border-white/10 bg-[#211b16]/70 p-3 sm:p-6">
+              <div className="col-start-1 row-start-1 min-w-0 lg:sticky lg:top-[105px]">
+                <div className="rounded-md border border-white/10 bg-[#211b16]/70 p-1.5 sm:p-3 lg:p-6">
                   <Cover key={product.id} product={product} />
                 </div>
-                <Link
-                  to="/shop"
-                  className={`${type.small} ${focus} mt-4 inline-flex min-h-11 items-center gap-2 text-[#c0b4a3] hover:text-[#efe8dc]`}
-                >
-                  <ArrowLeft size={16} aria-hidden="true" />
-                  Back to the crates
-                </Link>
               </div>
 
               {/* PRODUCT DETAILS */}
-              <div className="min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-6 sm:p-8 xl:p-10">
-                <p className={`${type.eyebrow} m-0 mb-4 text-[#cbb79c]`}>
-                  {product.medium || "From the crates"}
-                </p>
-                <Link
-                  to={`/shop?q=${encodeURIComponent(product.artist)}`}
-                  className={`${type.body} ${focus} mb-3 inline-block text-[#c0b4a3] underline decoration-[#cbb79c]/40 underline-offset-4 hover:text-[#efe8dc]`}
-                >
-                  {product.artist}
-                </Link>
-                <h1 className={`${type.sectionTitle} m-0 mb-5 [overflow-wrap:anywhere]`}>
-                  {product.title}
-                </h1>
-
-                {product.variant && (
-                  <p className={`${type.small} m-0 mb-6 text-[#c0b4a3]`}>{product.variant}</p>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-4 border-y border-white/10 py-5">
-                  <p className="m-0 font-[family-name:Arial,sans-serif] text-2xl font-medium leading-tight text-[#efe8dc]">
-                    {validPrice ? money(price) : "Price unavailable"}
+              <div className="contents lg:block lg:min-w-0 lg:rounded-md lg:border lg:border-white/10 lg:bg-[#211b16]/95 lg:p-8 xl:p-10">
+                <div className="col-start-2 row-start-1 min-w-0">
+                  <p
+                    className={`${type.eyebrow} m-0 mb-2 text-[#cbb79c] max-lg:text-[10px] max-lg:leading-[14px] max-lg:tracking-[0.12em] lg:mb-4`}
+                  >
+                    {product.medium || "From the crates"}
                   </p>
-                  <p className={`${type.small} m-0 inline-flex items-center gap-2 text-[#cbb79c]`}>
-                    <span
-                      aria-hidden="true"
-                      className={`h-1.5 w-1.5 rounded-full ${stock > 0 ? "bg-[#cbb79c]" : "bg-[#c0b4a3]"}`}
-                    />
-                    {stock > 0 ? `In stock · ${stock} available` : "Sold out"}
-                  </p>
+                  <Link
+                    to={`/shop?q=${encodeURIComponent(product.artist)}`}
+                    className={`${type.body} ${focus} mb-1.5 inline-block text-[#c0b4a3] underline decoration-[#cbb79c]/40 underline-offset-4 hover:text-[#efe8dc] max-lg:text-sm max-lg:leading-5 lg:mb-3`}
+                  >
+                    {product.artist}
+                  </Link>
+                  <h1
+                    className={`${type.sectionTitle} m-0 mb-2 [overflow-wrap:anywhere] max-lg:text-[22px] max-lg:leading-[1.2] max-lg:tracking-normal lg:mb-5`}
+                  >
+                    {product.title}
+                  </h1>
+
+                  {product.variant && (
+                    <p
+                      className={`${type.small} m-0 mb-3 line-clamp-2 text-[#c0b4a3] max-lg:text-xs max-lg:leading-[18px] lg:mb-6 lg:line-clamp-none`}
+                    >
+                      {product.variant}
+                    </p>
+                  )}
+
+                  <div className="flex flex-col items-start gap-1 border-white/10 pt-1 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between lg:gap-4 lg:border-y lg:py-5">
+                    <p className="m-0 font-[family-name:Arial,sans-serif] text-lg font-semibold leading-6 tracking-normal text-[#efe8dc] tabular-nums lg:text-2xl lg:leading-tight">
+                      {validPrice ? money(price) : "Price unavailable"}
+                    </p>
+                    <p
+                      className={`${type.small} m-0 inline-flex items-center gap-1.5 text-[#cbb79c] max-lg:text-xs max-lg:leading-[18px] lg:gap-2`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${stock > 0 ? "bg-[#cbb79c]" : "bg-[#c0b4a3]"}`}
+                      />
+                      {stock > 0 ? `In stock · ${stock} available` : "Sold out"}
+                    </p>
+                  </div>
                 </div>
 
                 {/* QUANTITY + CART */}
-                <form onSubmit={addToCart} className="mt-6">
-                  <label htmlFor="record-quantity" className={`${type.ui} mb-3 block`}>
-                    Quantity
-                  </label>
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <div className="flex h-[52px] shrink-0 items-center self-start rounded-md border border-white/15 bg-[#15120f]">
+                <div className="col-span-2 row-start-2 min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-3 sm:p-4 lg:mt-6 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                  <form onSubmit={addToCart}>
+                    <label htmlFor="record-quantity" className={`${type.ui} mb-2 block lg:mb-3`}>
+                      Quantity
+                    </label>
+                    <div className="flex min-w-0 items-start gap-2 lg:gap-3">
+                      <div className="flex h-11 shrink-0 items-center rounded-md border border-white/15 bg-[#15120f] lg:h-[52px]">
+                        <button
+                          type="button"
+                          aria-label="Decrease quantity"
+                          onClick={() => changeQuantity(-1)}
+                          disabled={stock < 1 || Number(quantity) <= 1}
+                          className={`${focus} flex h-10 w-9 items-center justify-center rounded-md text-[#cbb79c] cursor-pointer disabled:cursor-not-allowed disabled:opacity-35 lg:h-12 lg:w-11`}
+                        >
+                          <Minus size={16} aria-hidden="true" />
+                        </button>
+                        <input
+                          id="record-quantity"
+                          name="quantity"
+                          type="number"
+                          min="1"
+                          max={Math.max(1, stock)}
+                          step="1"
+                          required
+                          disabled={stock < 1}
+                          value={quantity}
+                          onChange={(event) => {
+                            setQuantity(event.target.value);
+                            setNotice({ text: "", error: false });
+                          }}
+                          className={`${type.body} h-10 w-9 appearance-none border-0 bg-transparent! p-0 text-center text-[#efe8dc]! focus:outline-none focus:ring-1 focus:ring-[#cbb79c] lg:h-11 lg:w-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]`}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Increase quantity"
+                          onClick={() => changeQuantity(1)}
+                          disabled={stock < 1 || Number(quantity) >= stock}
+                          className={`${focus} flex h-10 w-9 items-center justify-center rounded-md text-[#cbb79c] cursor-pointer disabled:cursor-not-allowed disabled:opacity-35 lg:h-12 lg:w-11`}
+                        >
+                          <Plus size={16} aria-hidden="true" />
+                        </button>
+                      </div>
                       <button
-                        type="button"
-                        aria-label="Decrease quantity"
-                        onClick={() => changeQuantity(-1)}
-                        disabled={stock < 1 || Number(quantity) <= 1}
-                        className={`${focus} flex h-12 w-11 items-center justify-center rounded-md text-[#cbb79c] disabled:cursor-not-allowed disabled:opacity-35`}
+                        type="submit"
+                        disabled={stock < 1 || !validPrice}
+                        className={`${type.ui} ${focus} inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-[#cbb79c] px-3 py-2 text-[#15120f] enabled:hover:bg-[#dfcdb3] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-[52px] lg:gap-3 lg:px-5 lg:py-3`}
                       >
-                        <Minus size={16} aria-hidden="true" />
-                      </button>
-                      <input
-                        id="record-quantity"
-                        name="quantity"
-                        type="number"
-                        min="1"
-                        max={Math.max(1, stock)}
-                        step="1"
-                        required
-                        disabled={stock < 1}
-                        value={quantity}
-                        onChange={(event) => {
-                          setQuantity(event.target.value);
-                          setNotice({ text: "", error: false });
-                        }}
-                        className={`${type.body} h-11 w-12 appearance-none border-0 bg-transparent p-0 text-center text-[#efe8dc] focus:outline-none focus:ring-1 focus:ring-[#cbb79c] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]`}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        onClick={() => changeQuantity(1)}
-                        disabled={stock < 1 || Number(quantity) >= stock}
-                        className={`${focus} flex h-12 w-11 items-center justify-center rounded-md text-[#cbb79c] disabled:cursor-not-allowed disabled:opacity-35`}
-                      >
-                        <Plus size={16} aria-hidden="true" />
+                        <ShoppingBag size={18} aria-hidden="true" />
+                        {stock > 0 ? "Add to cart" : "Sold out"}
                       </button>
                     </div>
-                    <button
-                      type="submit"
-                      disabled={stock < 1 || !validPrice}
-                      className={`${type.ui} ${focus} inline-flex min-h-[52px] flex-1 items-center justify-center gap-3 rounded-md bg-[#cbb79c] px-5 py-3 text-[#15120f] enabled:hover:bg-[#dfcdb3] disabled:cursor-not-allowed disabled:opacity-40`}
+                    <p
+                      role={notice.error ? "alert" : "status"}
+                      className={`${type.small} mb-0 mt-2 ${notice.text ? "min-h-6" : "hidden lg:block lg:min-h-6"} max-lg:text-xs lg:mt-3 ${notice.error ? "text-[#efe8dc]" : "text-[#cbb79c]"}`}
                     >
-                      <ShoppingBag size={18} aria-hidden="true" />
-                      {stock > 0 ? "Add to cart" : "Sold out"}
-                    </button>
-                  </div>
-                  <p
-                    role={notice.error ? "alert" : "status"}
-                    className={`${type.small} mb-0 mt-3 min-h-6 ${notice.error ? "text-[#efe8dc]" : "text-[#cbb79c]"}`}
-                  >
-                    {notice.text}
-                  </p>
-                </form>
+                      {notice.text}
+                    </p>
+                  </form>
 
-                {stock < 1 && (
-                  <Link
-                    to="/request"
-                    className={`${type.small} ${focus} mb-5 inline-flex min-h-11 items-center gap-2 text-[#cbb79c] underline underline-offset-4`}
-                  >
-                    Request this record
-                    <ArrowUpRight size={15} aria-hidden="true" />
-                  </Link>
-                )}
+                  {stock < 1 && (
+                    <Link
+                      to="/request"
+                      className={`${type.small} ${focus} mt-2 inline-flex min-h-11 items-center gap-2 text-[#cbb79c] underline underline-offset-4 max-lg:text-xs lg:mb-5 lg:mt-0`}
+                    >
+                      Request this record
+                      <ArrowUpRight size={15} aria-hidden="true" />
+                    </Link>
+                  )}
+                </div>
 
                 {/* DESCRIPTION */}
-                {product.description && (
-                  <section className="mt-6 border-t border-white/10 pt-6">
-                    <h2 className={`${type.itemTitle} m-0 mb-3`}>About this record</h2>
-                    <p
-                      className={`${type.body} m-0 whitespace-pre-line text-[#c0b4a3] [overflow-wrap:anywhere]`}
-                    >
-                      {product.description}
-                    </p>
-                  </section>
-                )}
+                <div className="col-span-2 row-start-3 min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-4 sm:p-6 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+                  {product.description && (
+                    <section className="border-white/10 lg:mt-6 lg:border-t lg:pt-6">
+                      <h2
+                        className={`${type.itemTitle} m-0 mb-3 max-lg:text-base! max-lg:leading-6`}
+                      >
+                        About this record
+                      </h2>
+                      <p
+                        className={`${type.body} m-0 whitespace-pre-line text-[#c0b4a3] [overflow-wrap:anywhere] max-lg:text-sm max-lg:leading-[22px]`}
+                      >
+                        {product.description}
+                      </p>
+                    </section>
+                  )}
 
-                <section className="mt-7 border-t border-white/10 pt-6">
-                  <h2 className={`${type.itemTitle} m-0 mb-4`}>The details</h2>
-                  <dl className={`${type.small} m-0`}>
-                    {[
-                      ["Format", product.medium],
-                      ["Pressing", product.variant],
-                      ["Released", product.released],
-                      ["Barcode", product.barcode],
-                    ]
-                      .filter(([, value]) => Boolean(value))
-                      .map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 border-b border-white/10 py-3"
-                        >
-                          <dt className="text-[#c0b4a3]">{label}</dt>
-                          <dd className="m-0 text-[#efe8dc] [overflow-wrap:anywhere]">{value}</dd>
+                  <section className="mt-5 border-t border-white/10 pt-5 lg:mt-7 lg:pt-6">
+                    <h2 className={`${type.itemTitle} m-0 mb-4 max-lg:text-base! max-lg:leading-6`}>
+                      The details
+                    </h2>
+                    <dl className={`${type.small} m-0`}>
+                      {[
+                        ["Format", product.medium],
+                        ["Pressing", product.variant],
+                        ["Released", product.released],
+                        ["Barcode", product.barcode],
+                      ]
+                        .filter(([, value]) => Boolean(value))
+                        .map(([label, value]) => (
+                          <div
+                            key={label}
+                            className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 border-b border-white/10 py-3"
+                          >
+                            <dt className="text-[#c0b4a3] max-lg:text-xs">{label}</dt>
+                            <dd className="m-0 text-[#efe8dc] [overflow-wrap:anywhere]">{value}</dd>
+                          </div>
+                        ))}
+                      {productGenres.length > 0 && (
+                        <div className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 py-3">
+                          <dt className="text-[#c0b4a3] max-lg:text-xs">Genre</dt>
+                          <dd className="m-0 flex flex-wrap gap-x-3 gap-y-2">
+                            {productGenres.map((genre) => (
+                              <Link
+                                key={genre}
+                                to={`/shop?genre=${encodeURIComponent(genre)}`}
+                                className={`${focus} text-[#cbb79c] underline decoration-[#cbb79c]/40 underline-offset-4`}
+                              >
+                                {genre}
+                              </Link>
+                            ))}
+                          </dd>
                         </div>
-                      ))}
-                    {productGenres.length > 0 && (
-                      <div className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 py-3">
-                        <dt className="text-[#c0b4a3]">Genre</dt>
-                        <dd className="m-0 flex flex-wrap gap-x-3 gap-y-2">
-                          {productGenres.map((genre) => (
-                            <Link
-                              key={genre}
-                              to={`/shop?genre=${encodeURIComponent(genre)}`}
-                              className={`${focus} text-[#cbb79c] underline decoration-[#cbb79c]/40 underline-offset-4`}
-                            >
-                              {genre}
-                            </Link>
-                          ))}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </section>
-
-                <a
-                  href={`mailto:kopisrecords@gmail.com?subject=${encodeURIComponent(`Question about ${product.artist} — ${product.title}`)}`}
-                  className={`${type.small} ${focus} mt-6 flex min-h-11 items-start gap-3 border-t border-white/10 pt-5 text-[#c0b4a3] hover:text-[#efe8dc]`}
-                >
-                  <Mail size={18} aria-hidden="true" className="mt-1 shrink-0 text-[#cbb79c]" />
-                  <span>
-                    Questions about this pressing?
-                    <br />
-                    <span className="text-[#cbb79c]">Have a chat with us ↗</span>
-                  </span>
-                </a>
+                      )}
+                    </dl>
+                  </section>
+                </div>
               </div>
             </div>
 
@@ -419,7 +426,10 @@ export default function ProductPage() {
                     <p className={`${type.eyebrow} m-0 mb-3 text-[#cbb79c]`}>
                       Keep the turntable going
                     </p>
-                    <h2 id="related-title" className={`${type.sectionTitle} m-0`}>
+                    <h2
+                      id="related-title"
+                      className={`${type.sectionTitle} m-0 max-lg:text-xl max-lg:leading-[1.2]`}
+                    >
                       More for your rotation.
                     </h2>
                   </div>
@@ -442,7 +452,7 @@ export default function ProductPage() {
                           {item.artist}
                         </p>
                         <h3
-                          className={`${type.itemTitle} m-0 mb-2 text-[#efe8dc] [overflow-wrap:anywhere]`}
+                          className={`${type.itemTitle} m-0 mb-2 text-[#efe8dc] [overflow-wrap:anywhere] max-lg:text-base! max-lg:leading-5`}
                         >
                           {item.title}
                         </h3>

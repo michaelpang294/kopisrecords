@@ -8,7 +8,7 @@ import community from "../assets/backgrounds/community.gif";
 import { typography as type } from "../styles/typography";
 
 const money = (value: number) =>
-  Number.isFinite(value) ? `S$${value.toFixed(2)}` : "Price unavailable";
+  Number.isFinite(value) ? `$${value.toFixed(2)}` : "Price unavailable";
 
 function RecordCard({ product, note }: { product: Product; note?: string }) {
   const [failed, setFailed] = useState(false);
@@ -116,7 +116,7 @@ export default function HomePage() {
         
         <main id="main-content">
           <section
-            className="flex min-h-[calc(100vh-81px)] supports-[height:100svh]:min-h-[calc(100svh-81px)] items-center bg-cover bg-center bg-no-repeat max-[640px]:min-h-[calc(100vh-69px)] max-[640px]:supports-[height:100svh]:min-h-[calc(100svh-69px)] max-[640px]:bg-[position:40%_center]"
+            className="flex min-h-[calc(100vh-81px)] supports-[height:100svh]:min-h-[calc(100svh-81px)] items-center bg-cover bg-center bg-no-repeat max-[640px]:min-h-[calc(100vh-57px)] max-[640px]:supports-[height:100svh]:min-h-[calc(100svh-57px)] max-[640px]:bg-[position:40%_center]"
             style={{
               backgroundImage: `linear-gradient(90deg, rgba(13,11,8,.82), rgba(13,11,8,.38)), url(${hero})`,
             }}
@@ -136,7 +136,27 @@ export default function HomePage() {
                 <Link className={`${type.ui} inline-flex min-h-12 cursor-pointer items-center justify-center gap-7 rounded-[3px] border-0 bg-[#cbb79c] px-6 py-[13px] !text-[#15120f] hover:bg-[#dfcdb3]`} to="/shop">
                   Shop the records <span aria-hidden="true">↗</span>
                 </Link>
-                <a className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`} href="#new-arrivals">
+                <a
+                  className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`}
+                  href="#new-arrivals"
+                  onClick={(event) => {
+                    if (
+                      event.button !== 0 || event.ctrlKey || event.metaKey ||
+                      event.shiftKey || event.altKey
+                    ) return;
+
+                    const section = document.getElementById("new-arrivals");
+                    if (!section) return;
+
+                    event.preventDefault();
+                    section.scrollIntoView({
+                      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                        ? "instant"
+                        : "smooth",
+                      block: "start",
+                    });
+                  }}
+                >
                   Explore new arrivals ↓
                 </a>
               </div>
