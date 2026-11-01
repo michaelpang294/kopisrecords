@@ -1,161 +1,469 @@
-import "../App.css";
-import bg2 from "../assets/backgrounds/second-slide-bg.png";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowUpRight, Disc3, Mail, Minus, Plus, ShoppingBag } from "lucide-react";
 import Footer from "../footer";
-import SearchBar from "../searchBar";
-import { useParams } from "react-router-dom";
-import { Divider } from "@mui/material";
-import { Check } from "lucide-react";
+import background from "../assets/backgrounds/second-slide-bg.png";
 import type { Product } from "../scripts/picksOfTheWeek";
+import { typography as type } from "../styles/typography";
 
-function ProductPage() {
-  const { id } = useParams();
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [product, setProduct] = useState<Product | null>(null);
-  const [, setActiveQuery] = useState("");
+const CART_KEY = "kopisrecords-cart";
+const focus =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4";
+type CartItem = { id: number; quantity: number };
 
-  useEffect(() => {
-    fetch("http://localhost:3001/api/stock")
-      .then((res) => res.json())
-      .then((data: Product[]) => {
-        setAllProducts(data);
-        const found = data.find((p) => p.id === Number(id));
-        setProduct(found || null);
-      });
-  }, [id]);
+function money(value: number) {
+  return Number.isFinite(value) ? `S$${value.toFixed(2)}` : "Price unavailable";
+}
 
+function genresOf(product: Product) {
+  return (product.genre || "")
+    .split(/[,;|]/)
+    .map((genre) => genre.trim())
+    .filter(Boolean);
+}
+
+function readCart(): CartItem[] {
+  const saved: unknown = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+  if (
+    !Array.isArray(saved) ||
+    !saved.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        Number.isInteger(item.id) &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0,
+    )
+  )
+    throw new Error("Invalid cart");
+  return saved;
+}
+
+function Cover({ product }: { product: Product }) {
+  const [failed, setFailed] = useState(false);
   return (
-    <div className="bg-black">
-      <section
-        className="text-white"
-        style={{ backgroundImage: `url(${bg2})` }}
-      >
-        {/* SHOW MOBILE HERE */}
-        <div className="2xl:hidden">
-          <div className="px-5 mt-3">
-            <SearchBar
-              products={allProducts}
-              setActiveQuery={setActiveQuery}
-              setFilteredProducts={setAllProducts}
-            />
-          </div>
+    <div className="aspect-square overflow-hidden bg-[#28231d]">
+      {product.cover_image && !failed ? (
+        <img
+          src={product.cover_image}
+          alt={`${product.artist} — ${product.title} cover`}
+          onError={() => setFailed(true)}
+          className="block h-full w-full object-contain"
+        />
+      ) : (
+        <div
+          role="img"
+          aria-label="Cover unavailable"
+          className="grid h-full place-items-center text-[#cbb79c]"
+        >
+          <Disc3 size={64} strokeWidth={1} aria-hidden="true" />
         </div>
-        {/* SHOW CATEGORIES AND SEARCH BAR FOR DESKTOP */}
-        <div className="hidden 2xl:flex flex-col bg-black/20 backdrop-blur-md text-white w-full items-center">
-          <SearchBar
-            products={allProducts}
-            setActiveQuery={setActiveQuery}
-            setFilteredProducts={setAllProducts}
-          />
-        </div>
-
-        {/* PRODUCT SECTION */}
-        <section className="flex flex-col flex-1 2xl:flex-row 2xl:p-16 text-white items-center">
-          {/* LEFT — COVER */}
-          <div className="w-full 2xl:w-1/4 flex justify-center 2xl:bg-black/40 2xl:backdrop-blur-md p-2">
-            <img
-              src={product?.cover_image}
-              alt={product?.title}
-              className="w-auto h-auto object-contain"
-            />
-          </div>
-          {/* MIDDLE — INFO */}
-          <div className="w-full 2xl:w-1/2 flex flex-col 2xl:gap-3 p-6">
-            <p className="text-xl 2xl:text-4xl font-semibold">
-              {product?.title}
-            </p>
-            <p className="text-base 2xl:text-xl">{product?.artist}</p>
-            <p className="mt-4 mb-2 2xl:text-base text-sm">
-              {product?.description}
-            </p>
-            <Divider sx={{ borderColor: "rgb(48, 47, 47)" }} />
-            <div className="mt-2 text-sm 2xl:text-base">
-              <p>
-                <strong>Format:</strong> {product?.medium}
-              </p>
-              <p>
-                <strong>Variant:</strong> {product?.variant}
-              </p>
-              <p>
-                <strong>Released:</strong> {product?.released}
-              </p>
-              <p>
-                <strong>Barcode:</strong> {product?.barcode}
-              </p>
-            </div>
-            <p className="2xl:text-base text-sm">
-              <strong>Genre:</strong> {product?.genre}
-            </p>
-          </div>
-          {/* RIGHT — ACTIONS */}
-          <div className="w-full 2xl:w-1/4 flex flex-col gap-2">
-            <div className="bg-black/40 backdrop-blur-md">
-              <div className="justify-between flex bg-black/60 p-4">
-                <p className="2xl:text-2xl">Price</p>
-                <p className="2xl:text-2xl">${product?.price}</p>
-              </div>
-              <div className="p-4">
-                <div className="justify-between flex text-base">
-                  <p>Stock: {product?.stock}</p>
-                  <p>
-                    <strong>Limited Stock Left</strong>
-                  </p>
-                </div>
-                <button
-                  disabled={product?.stock === 0}
-                  className={`
-                    mt-2 px-3 py-1 w-full rounded text-black transition
-                    ${
-                      product?.stock === 0
-                        ? "bg-gray-400 cursor-not-allowed opacity-50"
-                        : "bg-[#cbb79c] hover:opacity-80"
-                    }
-                  `}
-                >
-                  {product?.stock === 0 ? "Sold Out" : "Add to Cart"}
-                </button>
-                <div className="text-xs text-gray-400 mt-2">
-                  <p>Free local mailing on orders over $100</p>
-                  <p>Get your records within 2–3 working days</p>
-                  <div className="gap-2 flex items-center">
-                    <Check size={14} />
-                    <p>7 Day Return Policy</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-black/40 backdrop-blur-md">
-              <div className="p-4 bg-black/60">
-                <p className="2xl:text-lg">More Like This</p>
-              </div>
-              <div className="grid grid-cols-4 p-4">
-                {allProducts
-                  .filter(
-                    (p) => p.genre === product?.genre && p.id !== product?.id,
-                  )
-                  .slice(0, 4)
-                  .map((item) => (
-                    <a
-                      key={item.id}
-                      href={`/shop/product/${item.id}`}
-                      className="flex flex-col items-center text-center hover:scale-110 transition"
-                    >
-                      <img
-                        src={item.cover_image}
-                        alt={item.title}
-                        className="w-20 h-20 object-cover rounded"
-                      />
-                      <p className="text-xs mt-2 line-clamp-2">{item.title}</p>
-                    </a>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      </section>
-      <Footer />
+      )}
     </div>
   );
 }
 
-export default ProductPage;
+export default function ProductPage() {
+  const { id } = useParams<{ id: string }>();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [quantity, setQuantity] = useState("1");
+  const [notice, setNotice] = useState({ text: "", error: false });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    setQuantity("1");
+    setNotice({ text: "", error: false });
+    window.scrollTo(0, 0);
+
+    fetch("http://localhost:3001/api/stock", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Stock unavailable");
+        return response.json();
+      })
+      .then((data: Product[]) => {
+        if (!Array.isArray(data)) throw new Error("Invalid stock data");
+        if (!controller.signal.aborted) setProducts(data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [id, attempt]);
+
+  const product = products.find((item) => String(item.id) === id);
+  const rawStock = Number(product?.stock);
+  const stock = Number.isFinite(rawStock) ? Math.max(0, Math.floor(rawStock)) : 0;
+  const price = Number(product?.price);
+  const validPrice = Number.isFinite(price) && price >= 0;
+  const productGenres = product ? genresOf(product) : [];
+  const related = product
+    ? products
+        .filter(
+          (item) =>
+            String(item.id) !== String(product.id) &&
+            Number(item.stock) > 0 &&
+            genresOf(item).some((genre) =>
+              productGenres.some((selected) => selected.toLowerCase() === genre.toLowerCase()),
+            ),
+        )
+        .slice(0, 5)
+    : [];
+
+  function changeQuantity(amount: number) {
+    setQuantity(String(Math.max(1, Math.min(stock, (Number(quantity) || 1) + amount))));
+    setNotice({ text: "", error: false });
+  }
+
+  function addToCart(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!product || stock < 1 || !validPrice) return;
+    const amount = Number(quantity);
+    if (!Number.isInteger(amount) || amount < 1 || amount > stock) {
+      setNotice({ text: `Choose a quantity between 1 and ${stock}.`, error: true });
+      return;
+    }
+
+    try {
+      const cart = readCart();
+      const existingQuantity = cart
+        .filter((item) => item.id === Number(product.id))
+        .reduce((total, item) => total + item.quantity, 0);
+      if (existingQuantity + amount > stock) {
+        setNotice({
+          text: `You already have ${existingQuantity} in your cart. Only ${stock} available in total.`,
+          error: true,
+        });
+        return;
+      }
+      const next = cart.filter((item) => item.id !== Number(product.id));
+      next.push({ id: Number(product.id), quantity: existingQuantity + amount });
+      localStorage.setItem(CART_KEY, JSON.stringify(next));
+      setNotice({
+        text: `${amount} ${amount === 1 ? "copy" : "copies"} added to your cart.`,
+        error: false,
+      });
+    } catch {
+      setNotice({ text: "Your cart couldn’t be updated. Please try again.", error: true });
+    }
+  }
+
+  return (
+    <div className={`${type.body} relative isolate min-h-screen bg-[#15120f] text-[#efe8dc]`}>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${background})` }}
+      />
+
+      <main
+        id="main-content"
+        className="mx-auto max-w-[1600px] px-[18px] pb-14 pt-7 sm:px-6 sm:pt-10 lg:px-10 lg:pb-20"
+      >
+        <nav
+          aria-label="Breadcrumb"
+          className={`${type.small} mb-8 flex flex-wrap items-center gap-x-3 gap-y-2 text-[#c0b4a3]`}
+        >
+          <Link to="/" className={`${focus} hover:text-[#efe8dc]`}>
+            Home
+          </Link>
+          <span aria-hidden="true">/</span>
+          <Link to="/shop" className={`${focus} hover:text-[#efe8dc]`}>
+            Shop
+          </Link>
+          {product && !loading && !error && (
+            <>
+              <span aria-hidden="true">/</span>
+              <span aria-current="page" className="min-w-0 text-[#efe8dc] [overflow-wrap:anywhere]">
+                {product.title}
+              </span>
+            </>
+          )}
+        </nav>
+
+        {loading ? (
+          <div role="status" className="py-20 text-center text-[#c0b4a3]">
+            Getting your record ready…
+          </div>
+        ) : error || !product ? (
+          <section className="rounded-md border border-white/10 bg-[#211b16] px-6 py-16 text-center">
+            <Disc3
+              size={44}
+              strokeWidth={1}
+              aria-hidden="true"
+              className="mx-auto mb-5 text-[#cbb79c]"
+            />
+            <h1 className={`${type.sectionTitle} m-0 mb-4`}>
+              {error ? "The record couldn’t load." : "This record isn’t in the crates."}
+            </h1>
+            <p role={error ? "alert" : "status"} className={`${type.body} m-0 text-[#c0b4a3]`}>
+              {error
+                ? "Please try again in a moment."
+                : "It may have moved or is no longer listed."}
+            </p>
+            {error && (
+              <button
+                type="button"
+                onClick={() => setAttempt((value) => value + 1)}
+                className={`${type.ui} ${focus} mt-6 min-h-11 rounded-md bg-[#cbb79c] px-5 py-2 text-[#15120f] hover:bg-[#dfcdb3]`}
+              >
+                Try again
+              </button>
+            )}
+            <Link
+              to="/shop"
+              className={`${type.ui} ${focus} mx-auto mt-6 flex min-h-11 w-fit items-center gap-2 text-[#cbb79c]`}
+            >
+              <ArrowLeft size={16} aria-hidden="true" />
+              Back to the shop
+            </Link>
+          </section>
+        ) : (
+          <>
+            <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_1fr] lg:gap-10 xl:gap-16">
+              {/* COVER */}
+              <div className="min-w-0 lg:sticky lg:top-[105px]">
+                <div className="rounded-md border border-white/10 bg-[#211b16]/70 p-3 sm:p-6">
+                  <Cover key={product.id} product={product} />
+                </div>
+                <Link
+                  to="/shop"
+                  className={`${type.small} ${focus} mt-4 inline-flex min-h-11 items-center gap-2 text-[#c0b4a3] hover:text-[#efe8dc]`}
+                >
+                  <ArrowLeft size={16} aria-hidden="true" />
+                  Back to the crates
+                </Link>
+              </div>
+
+              {/* PRODUCT DETAILS */}
+              <div className="min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-6 sm:p-8 xl:p-10">
+                <p className={`${type.eyebrow} m-0 mb-4 text-[#cbb79c]`}>
+                  {product.medium || "From the crates"}
+                </p>
+                <Link
+                  to={`/shop?q=${encodeURIComponent(product.artist)}`}
+                  className={`${type.body} ${focus} mb-3 inline-block text-[#c0b4a3] underline decoration-[#cbb79c]/40 underline-offset-4 hover:text-[#efe8dc]`}
+                >
+                  {product.artist}
+                </Link>
+                <h1 className={`${type.sectionTitle} m-0 mb-5 [overflow-wrap:anywhere]`}>
+                  {product.title}
+                </h1>
+
+                {product.variant && (
+                  <p className={`${type.small} m-0 mb-6 text-[#c0b4a3]`}>{product.variant}</p>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-4 border-y border-white/10 py-5">
+                  <p className="m-0 font-[family-name:Arial,sans-serif] text-2xl font-medium leading-tight text-[#efe8dc]">
+                    {validPrice ? money(price) : "Price unavailable"}
+                  </p>
+                  <p className={`${type.small} m-0 inline-flex items-center gap-2 text-[#cbb79c]`}>
+                    <span
+                      aria-hidden="true"
+                      className={`h-1.5 w-1.5 rounded-full ${stock > 0 ? "bg-[#cbb79c]" : "bg-[#c0b4a3]"}`}
+                    />
+                    {stock > 0 ? `In stock · ${stock} available` : "Sold out"}
+                  </p>
+                </div>
+
+                {/* QUANTITY + CART */}
+                <form onSubmit={addToCart} className="mt-6">
+                  <label htmlFor="record-quantity" className={`${type.ui} mb-3 block`}>
+                    Quantity
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="flex h-[52px] shrink-0 items-center self-start rounded-md border border-white/15 bg-[#15120f]">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        onClick={() => changeQuantity(-1)}
+                        disabled={stock < 1 || Number(quantity) <= 1}
+                        className={`${focus} flex h-12 w-11 items-center justify-center rounded-md text-[#cbb79c] disabled:cursor-not-allowed disabled:opacity-35`}
+                      >
+                        <Minus size={16} aria-hidden="true" />
+                      </button>
+                      <input
+                        id="record-quantity"
+                        name="quantity"
+                        type="number"
+                        min="1"
+                        max={Math.max(1, stock)}
+                        step="1"
+                        required
+                        disabled={stock < 1}
+                        value={quantity}
+                        onChange={(event) => {
+                          setQuantity(event.target.value);
+                          setNotice({ text: "", error: false });
+                        }}
+                        className={`${type.body} h-11 w-12 appearance-none border-0 bg-transparent p-0 text-center text-[#efe8dc] focus:outline-none focus:ring-1 focus:ring-[#cbb79c] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [appearance:textfield]`}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        onClick={() => changeQuantity(1)}
+                        disabled={stock < 1 || Number(quantity) >= stock}
+                        className={`${focus} flex h-12 w-11 items-center justify-center rounded-md text-[#cbb79c] disabled:cursor-not-allowed disabled:opacity-35`}
+                      >
+                        <Plus size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={stock < 1 || !validPrice}
+                      className={`${type.ui} ${focus} inline-flex min-h-[52px] flex-1 items-center justify-center gap-3 rounded-md bg-[#cbb79c] px-5 py-3 text-[#15120f] enabled:hover:bg-[#dfcdb3] disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <ShoppingBag size={18} aria-hidden="true" />
+                      {stock > 0 ? "Add to cart" : "Sold out"}
+                    </button>
+                  </div>
+                  <p
+                    role={notice.error ? "alert" : "status"}
+                    className={`${type.small} mb-0 mt-3 min-h-6 ${notice.error ? "text-[#efe8dc]" : "text-[#cbb79c]"}`}
+                  >
+                    {notice.text}
+                  </p>
+                </form>
+
+                {stock < 1 && (
+                  <Link
+                    to="/request"
+                    className={`${type.small} ${focus} mb-5 inline-flex min-h-11 items-center gap-2 text-[#cbb79c] underline underline-offset-4`}
+                  >
+                    Request this record
+                    <ArrowUpRight size={15} aria-hidden="true" />
+                  </Link>
+                )}
+
+                {/* DESCRIPTION */}
+                {product.description && (
+                  <section className="mt-6 border-t border-white/10 pt-6">
+                    <h2 className={`${type.itemTitle} m-0 mb-3`}>About this record</h2>
+                    <p
+                      className={`${type.body} m-0 whitespace-pre-line text-[#c0b4a3] [overflow-wrap:anywhere]`}
+                    >
+                      {product.description}
+                    </p>
+                  </section>
+                )}
+
+                <section className="mt-7 border-t border-white/10 pt-6">
+                  <h2 className={`${type.itemTitle} m-0 mb-4`}>The details</h2>
+                  <dl className={`${type.small} m-0`}>
+                    {[
+                      ["Format", product.medium],
+                      ["Pressing", product.variant],
+                      ["Released", product.released],
+                      ["Barcode", product.barcode],
+                    ]
+                      .filter(([, value]) => Boolean(value))
+                      .map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 border-b border-white/10 py-3"
+                        >
+                          <dt className="text-[#c0b4a3]">{label}</dt>
+                          <dd className="m-0 text-[#efe8dc] [overflow-wrap:anywhere]">{value}</dd>
+                        </div>
+                      ))}
+                    {productGenres.length > 0 && (
+                      <div className="grid grid-cols-[85px_minmax(0,1fr)] gap-4 py-3">
+                        <dt className="text-[#c0b4a3]">Genre</dt>
+                        <dd className="m-0 flex flex-wrap gap-x-3 gap-y-2">
+                          {productGenres.map((genre) => (
+                            <Link
+                              key={genre}
+                              to={`/shop?genre=${encodeURIComponent(genre)}`}
+                              className={`${focus} text-[#cbb79c] underline decoration-[#cbb79c]/40 underline-offset-4`}
+                            >
+                              {genre}
+                            </Link>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </section>
+
+                <a
+                  href={`mailto:kopisrecords@gmail.com?subject=${encodeURIComponent(`Question about ${product.artist} — ${product.title}`)}`}
+                  className={`${type.small} ${focus} mt-6 flex min-h-11 items-start gap-3 border-t border-white/10 pt-5 text-[#c0b4a3] hover:text-[#efe8dc]`}
+                >
+                  <Mail size={18} aria-hidden="true" className="mt-1 shrink-0 text-[#cbb79c]" />
+                  <span>
+                    Questions about this pressing?
+                    <br />
+                    <span className="text-[#cbb79c]">Have a chat with us ↗</span>
+                  </span>
+                </a>
+              </div>
+            </div>
+
+            {/* RELATED RECORDS */}
+            {related.length > 0 && (
+              <section
+                aria-labelledby="related-title"
+                className="mt-14 border-t border-white/10 pt-10 lg:mt-20 lg:pt-14"
+              >
+                <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className={`${type.eyebrow} m-0 mb-3 text-[#cbb79c]`}>
+                      Keep the turntable going
+                    </p>
+                    <h2 id="related-title" className={`${type.sectionTitle} m-0`}>
+                      More for your rotation.
+                    </h2>
+                  </div>
+                  <Link
+                    to="/shop"
+                    className={`${type.ui} ${focus} inline-flex min-h-11 items-center gap-2 text-[#cbb79c]`}
+                  >
+                    Explore the crates
+                    <ArrowUpRight size={16} aria-hidden="true" />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5 lg:gap-x-6">
+                  {related.map((item) => (
+                    <article key={item.id} className="min-w-0">
+                      <Link to={`/shop/product/${item.id}`} className={`${focus} block rounded-sm`}>
+                        <Cover product={item} />
+                        <p
+                          className={`${type.small} mb-1 mt-4 text-[#c0b4a3] [overflow-wrap:anywhere]`}
+                        >
+                          {item.artist}
+                        </p>
+                        <h3
+                          className={`${type.itemTitle} m-0 mb-2 text-[#efe8dc] [overflow-wrap:anywhere]`}
+                        >
+                          {item.title}
+                        </h3>
+                        <p
+                          className={`${type.meta} m-0 mb-3 text-[#c0b4a3] [overflow-wrap:anywhere]`}
+                        >
+                          {[item.medium, item.variant].filter(Boolean).join(" · ")}
+                        </p>
+                        <p className={`${type.ui} m-0 text-[#cbb79c]`}>
+                          {money(Number(item.price))}
+                        </p>
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
+}

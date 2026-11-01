@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import StoreHeader from "../components/StoreHeader";
 import Footer from "../footer";
 
 const inputClass =
@@ -39,8 +38,6 @@ export default function RequestRecordPage() {
 
   return (
     <div className="min-h-screen bg-[#15120f] font-[Arial,sans-serif] leading-relaxed text-[#efe8dc]">
-      <StoreHeader />
-
       <main id="main-content">
         <section className="relative isolate overflow-hidden border-b border-white/10">
           {/* Soft background glow */}
