@@ -1,8 +1,7 @@
 import bg1 from '../assets/backgrounds/front-slide-bg.png';
 import bg2 from '../assets/backgrounds/second-slide-bg.png';
 import bg3 from '../assets/backgrounds/third-slide-bg.png';
-import gif1 from '../assets/backgrounds/digging.gif';
-import gif2 from '../assets/backgrounds/community.gif';
+import gif1 from '../assets/backgrounds/community.gif';
 import { useState } from 'react';
 import { picks } from '../scripts/picksOfTheWeek.ts';
 import Footer from '../footer.tsx';
@@ -71,11 +70,7 @@ function App() {
             in love with the hobby and the community around it. We’re just a couple of music lovers, and this store is our way of spreading the love and fun in collecting records. 
             Hopefully, through us you can find your new favourites along the way.
           </p>
-          <img src={gif2} className='object-contain mt-4' />
-          
-        </div>
-        <div className=''>
-          <img src={gif1} className='2xl:flex hidden' />
+          <img src={gif1} className='object-contain mt-4' />
         </div>
       </section>
       <Footer />
@@ -84,22 +79,3 @@ function App() {
 }
 
 export default App;
-      // <section 
-      //   className="p-10 flex flex-col justify-center 2xl:flex-row w-full text-white h-screen"
-      //   style={{ backgroundImage: `url(${bg3})` }}
-      // >
-      //   <div className='flex-1 flex flex-col justify-center'>
-      //     <p className='text-2xl 2xl:text-5xl'>About Us</p>
-      //     <p className='mt-5 text-md'>We started our shop just like any other record store. From poor self control and even more impulsive purchases, we fell 
-      //       in love with the hobby and the community around it. We’re just a couple of music lovers, and this store is our way of spreading the love and fun in collecting records. 
-      //       Hopefully, through us you can find your new favourites along the way.
-      //     </p>
-      //     <img src={gif2} className='flex-1 object-contain w-full h-full ' />
-      //   </div>
-      //   <div className='flex-1'>
-      //     <img 
-      //       src={gif1} 
-      //       className='w-full h-full object-contain 2xl:flex hidden' 
-      //     />
-      //   </div>
-      // </section>

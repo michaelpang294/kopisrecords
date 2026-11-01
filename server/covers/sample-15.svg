@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" role="img" aria-label="Sample cover placeholder for The Sundays - Reading, Writing and Arithmetic">
+<rect width="600" height="600" fill="#61785c"/>
+<rect x="24" y="24" width="552" height="552" fill="none" stroke="#e7dfc9" stroke-width="2"/>
+<circle cx="300" cy="270" r="155" fill="#1b1b1b"/>
+<g fill="none" stroke="#383838" stroke-width="2"><circle cx="300" cy="270" r="143"/><circle cx="300" cy="270" r="128"/><circle cx="300" cy="270" r="113"/><circle cx="300" cy="270" r="98"/></g>
+<circle cx="300" cy="270" r="52" fill="#cbb79c"/>
+<circle cx="300" cy="270" r="7" fill="#1b1b1b"/>
+<g fill="#f4ecdc" font-family="Arial,sans-serif" text-anchor="middle">
+<text x="300" y="70" font-size="17" letter-spacing="5">KOPI'S RECORDS / TEST DATA</text>
+<text x="300" y="477" font-size="25">The Sundays</text>
+<text x="300" y="518" font-size="23">Reading, Writing and Arithmetic</text>
+<text x="300" y="558" font-size="13" letter-spacing="3">VINYL / SAMPLE COVER</text>
+</g></svg>
