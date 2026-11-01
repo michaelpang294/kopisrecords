@@ -1,0 +1,10 @@
+@font-face {
+  font-family: 'Marcellus';
+  src: url(../src/assets/fonts/Marcellus-Regular.ttf);
+}
+
+@import "tailwindcss";
+
+@theme { 
+  --font-marcellus: Marcellus, "sans-serif";
+}

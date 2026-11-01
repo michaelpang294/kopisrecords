@@ -1,0 +1,13 @@
+p, a {
+    font-family: var(--font-marcellus);
+}
+
+.numberFont {
+    font-family: 'Times New Roman', Times, serif 
+}
+
+input {
+    background-color: white;
+}
+
+thead { position: sticky; top: 0; }
