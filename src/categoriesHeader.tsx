@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
-import { actionCategories, shopCategories } from './scripts/picksOfTheWeek';
+import { shopCategories } from './scripts/picksOfTheWeek';
 
 
 

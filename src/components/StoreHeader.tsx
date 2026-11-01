@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { typography as type } from "../styles/typography";
+import { useCart } from "../cart/CartContext";
 
 const navigationLink = `${type.ui} block py-[13px] text-[#efe8dc] transition-colors hover:text-[#cbb79c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4 max-[640px]:border-t max-[640px]:border-white/10 motion-reduce:transition-none`;
 
 export default function StoreHeader() {
+  const { itemCount } = useCart();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const location = useLocation();
@@ -77,9 +79,22 @@ export default function StoreHeader() {
           <Link to="/request" className={navigationLink}>
             Request a record
           </Link>
-          <a href="#cart" className={navigationLink}>
+          <Link
+            to="/cart"
+            aria-label={`Cart, ${itemCount} ${itemCount === 1 ? "item" : "items"}`}
+            aria-current={location.pathname === "/cart" ? "page" : undefined}
+            className={`${navigationLink} relative inline-flex items-center gap-2`}
+          >
             Cart
-          </a>
+            {itemCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#cbb79c] px-1 font-[family-name:Arial,sans-serif] text-[10px] leading-none text-[#15120f] min-[641px]:absolute min-[641px]:-right-3 min-[641px]:top-1"
+              >
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
+          </Link>
         </nav>
       </div>
     </header>

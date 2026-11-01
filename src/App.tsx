@@ -6,6 +6,7 @@ import ShopPage from "./pages/ShopPage";
 import ProductPage from "./pages/ProductPage";
 import RequestRecordPage from "./pages/RequestPage";
 import AdminPage from "./pages/AdminPage";
+import CartPage from "./pages/CartPage";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -19,7 +20,7 @@ export default function App() {
       behavior: "instant",
     });
   }, [pathname]);
-    
+
   return (
     <div className="min-h-screen bg-[#15120f] text-[#efe8dc]">
       <StoreHeader />
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/shop/product/:id" element={<ProductPage />} />
 
         <Route path="/request" element={<RequestRecordPage />} />
+        <Route path="/cart" element={<CartPage />} />
 
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/:action" element={<AdminPage />} />

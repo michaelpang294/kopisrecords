@@ -6,15 +6,15 @@ import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
 import type { Product } from "../scripts/picksOfTheWeek";
 import { typography as type } from "../styles/typography";
+import { useCart } from "../cart/CartContext";
+import { getPriceCents, getStock } from "../cart/cartStorage";
 
-const CART_KEY = "kopisrecords-cart";
 const focus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4";
 // Keep legacy global p/a font rules from changing prices or body copy to serif.
 // Scoped to main content so the header and footer wordmarks keep their own fonts.
 const productFonts =
   "[&_:is(p,a,button,input,label,dl)]:font-[family-name:Arial,sans-serif]! [&_:is(h1,h2,h3)]:font-[family-name:Marcellus,Georgia,serif]!";
-type CartItem = { id: number; quantity: number };
 
 function money(value: number) {
   return Number.isFinite(value) ? `$${value.toFixed(2)}` : "Price unavailable";
@@ -25,23 +25,6 @@ function genresOf(product: Product) {
     .split(/[,;|]/)
     .map((genre) => genre.trim())
     .filter(Boolean);
-}
-
-function readCart(): CartItem[] {
-  const saved: unknown = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-  if (
-    !Array.isArray(saved) ||
-    !saved.every(
-      (item) =>
-        item &&
-        typeof item === "object" &&
-        Number.isInteger(item.id) &&
-        Number.isInteger(item.quantity) &&
-        item.quantity > 0,
-    )
-  )
-    throw new Error("Invalid cart");
-  return saved;
 }
 
 function Cover({ product }: { product: Product }) {
@@ -69,6 +52,7 @@ function Cover({ product }: { product: Product }) {
 }
 
 export default function ProductPage() {
+  const { addItem, quantityFor, storageMessage } = useCart();
   const { id } = useParams<{ id: string }>();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,10 +88,11 @@ export default function ProductPage() {
   }, [id, attempt]);
 
   const product = products.find((item) => String(item.id) === id);
-  const rawStock = Number(product?.stock);
-  const stock = Number.isFinite(rawStock) ? Math.max(0, Math.floor(rawStock)) : 0;
+  const stock = getStock(product?.stock);
   const price = Number(product?.price);
-  const validPrice = Number.isFinite(price) && price >= 0;
+  const validPrice = getPriceCents(product?.price) !== null;
+  const inCart = quantityFor(Number(product?.id));
+  const remainingStock = Math.max(0, stock - inCart);
   const productGenres = product ? genresOf(product) : [];
   const related = product
     ? products
@@ -123,7 +108,7 @@ export default function ProductPage() {
     : [];
 
   function changeQuantity(amount: number) {
-    setQuantity(String(Math.max(1, Math.min(stock, (Number(quantity) || 1) + amount))));
+    setQuantity(String(Math.max(1, Math.min(remainingStock, (Number(quantity) || 1) + amount))));
     setNotice({ text: "", error: false });
   }
 
@@ -136,28 +121,9 @@ export default function ProductPage() {
       return;
     }
 
-    try {
-      const cart = readCart();
-      const existingQuantity = cart
-        .filter((item) => item.id === Number(product.id))
-        .reduce((total, item) => total + item.quantity, 0);
-      if (existingQuantity + amount > stock) {
-        setNotice({
-          text: `You already have ${existingQuantity} in your cart. Only ${stock} available in total.`,
-          error: true,
-        });
-        return;
-      }
-      const next = cart.filter((item) => item.id !== Number(product.id));
-      next.push({ id: Number(product.id), quantity: existingQuantity + amount });
-      localStorage.setItem(CART_KEY, JSON.stringify(next));
-      setNotice({
-        text: `${amount} ${amount === 1 ? "copy" : "copies"} added to your cart.`,
-        error: false,
-      });
-    } catch {
-      setNotice({ text: "Your cart couldn’t be updated. Please try again.", error: true });
-    }
+    const result = addItem(product, amount);
+    setNotice({ text: result.message, error: !result.ok });
+    if (result.ok) setQuantity("1");
   }
 
   return (
@@ -287,16 +253,26 @@ export default function ProductPage() {
                 {/* QUANTITY + CART */}
                 <div className="col-span-2 row-start-2 min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-3 sm:p-4 lg:mt-6 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                   <form onSubmit={addToCart}>
-                    <label htmlFor="record-quantity" className={`${type.ui} mb-2 block lg:mb-3`}>
-                      Quantity
-                    </label>
+                    <div className="mb-2 flex items-center justify-between gap-3 lg:mb-3">
+                      <label htmlFor="record-quantity" className={type.ui}>
+                        Quantity
+                      </label>
+                      {inCart > 0 && (
+                        <Link
+                          to="/cart"
+                          className={`${type.meta} ${focus} inline-flex min-h-6 items-center gap-1 text-[#cbb79c] underline underline-offset-4`}
+                        >
+                          {inCart} in cart <ArrowUpRight size={12} aria-hidden="true" />
+                        </Link>
+                      )}
+                    </div>
                     <div className="flex min-w-0 items-start gap-2 lg:gap-3">
                       <div className="flex h-11 shrink-0 items-center rounded-md border border-white/15 bg-[#15120f] lg:h-[52px]">
                         <button
                           type="button"
                           aria-label="Decrease quantity"
                           onClick={() => changeQuantity(-1)}
-                          disabled={stock < 1 || Number(quantity) <= 1}
+                          disabled={remainingStock < 1 || Number(quantity) <= 1}
                           className={`${focus} flex h-10 w-9 items-center justify-center rounded-md text-[#cbb79c] cursor-pointer disabled:cursor-not-allowed disabled:opacity-35 lg:h-12 lg:w-11`}
                         >
                           <Minus size={16} aria-hidden="true" />
@@ -306,10 +282,10 @@ export default function ProductPage() {
                           name="quantity"
                           type="number"
                           min="1"
-                          max={Math.max(1, stock)}
+                          max={Math.max(1, remainingStock)}
                           step="1"
                           required
-                          disabled={stock < 1}
+                          disabled={remainingStock < 1}
                           value={quantity}
                           onChange={(event) => {
                             setQuantity(event.target.value);
@@ -321,7 +297,7 @@ export default function ProductPage() {
                           type="button"
                           aria-label="Increase quantity"
                           onClick={() => changeQuantity(1)}
-                          disabled={stock < 1 || Number(quantity) >= stock}
+                          disabled={remainingStock < 1 || Number(quantity) >= remainingStock}
                           className={`${focus} flex h-10 w-9 items-center justify-center rounded-md text-[#cbb79c] cursor-pointer disabled:cursor-not-allowed disabled:opacity-35 lg:h-12 lg:w-11`}
                         >
                           <Plus size={16} aria-hidden="true" />
@@ -329,11 +305,15 @@ export default function ProductPage() {
                       </div>
                       <button
                         type="submit"
-                        disabled={stock < 1 || !validPrice}
+                        disabled={remainingStock < 1 || !validPrice}
                         className={`${type.ui} ${focus} inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-md bg-[#cbb79c] px-3 py-2 text-[#15120f] enabled:hover:bg-[#dfcdb3] cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-[52px] lg:gap-3 lg:px-5 lg:py-3`}
                       >
                         <ShoppingBag size={18} aria-hidden="true" />
-                        {stock > 0 ? "Add to cart" : "Sold out"}
+                        {stock < 1
+                          ? "Sold out"
+                          : remainingStock < 1
+                            ? "In your cart"
+                            : "Add to cart"}
                       </button>
                     </div>
                     <p
@@ -342,6 +322,11 @@ export default function ProductPage() {
                     >
                       {notice.text}
                     </p>
+                    {storageMessage && (
+                      <p role="status" className={`${type.meta} mb-0 mt-2 text-[#cbb79c]`}>
+                        {storageMessage}
+                      </p>
+                    )}
                   </form>
 
                   {stock < 1 && (
