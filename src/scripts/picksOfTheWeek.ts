@@ -1,6 +1,6 @@
-import album1 from '../assets/products/fela kuti.jpg'
-import album2 from '../assets/products/sprain.jpg'
-import album3 from '../assets/products/the-strokes.jpg';
+import album1 from "../assets/products/fela kuti.jpg";
+import album2 from "../assets/products/sprain.jpg";
+import album3 from "../assets/products/the-strokes.jpg";
 
 export type Product = {
   id: number;
@@ -31,7 +31,7 @@ export const informationCategories = [
   { name: "FAQ", link: "/faq" },
   { name: "Local Gigs", link: "/local-gigs" },
   { name: "Admin", link: "/admin" },
-]
+];
 
 export const actionCategories = [
   {
@@ -48,57 +48,30 @@ export const actionCategories = [
   },
   {
     name: "🔐 Log Out",
-    link: "/admin"
-  }
+    link: "/admin",
+  },
 ];
 
+// Edit this list to choose which catalogue records appear on the homepage.
+// A pick is displayed only when its artist and title match a live API product.
 export const picks = [
   {
     title: "The New Abnormal",
     artist: "The Strokes",
+    image: album3,
+    description: "For late nights, familiar voices, and one more listen.",
+  },
+  {
+    title: "The Lamb as Effigy",
+    artist: "Sprain",
+    image: album2,
+    description: "For an evening spent getting completely lost in an album.",
+  },
+  {
+    title: "Zombie",
+    artist: "Fela Kuti",
     image: album1,
-    description: "A slick, melancholic comeback record with razor-sharp songwriting."
+    description:
+      "For the days when you want to turn it up and let the record run.",
   },
-  {
-    title: "The Lamb as Effigy",
-    artist: "Sprain",
-    image: album2,
-    description: "Lo-fi, fuzzy, and full of character."
-  },
-  {
-    title: "Zombie",
-    artist: "Fela Kuti",
-    image: album3,
-    description: "A powerful blend of Afrobeat and funk."
-  },
-  {
-    title: "The New Abnormal",
-    artist: "The Strokes",
-    image: album1,
-    description: "A slick, melancholic comeback record with razor-sharp songwriting."
-  },
-  {
-    title: "The Lamb as Effigy",
-    artist: "Sprain",
-    image: album2,
-    description: "Lo-fi, fuzzy, and full of character."
-  },
-  {
-    title: "Zombie",
-    artist: "Fela Kuti",
-    image: album3,
-    description: "A powerful blend of Afrobeat and funk."
-  },
-   {
-    title: "The Lamb as Effigy",
-    artist: "Sprain",
-    image: album2,
-    description: "Lo-fi, fuzzy, and full of character."
-  },
-  {
-    title: "Zombie",
-    artist: "Fela Kuti",
-    image: album3,
-    description: "A powerful blend of Afrobeat and funk."
-  }
 ];

@@ -1,81 +1,280 @@
-import bg1 from '../assets/backgrounds/front-slide-bg.png';
-import bg2 from '../assets/backgrounds/second-slide-bg.png';
-import bg3 from '../assets/backgrounds/third-slide-bg.png';
-import gif1 from '../assets/backgrounds/community.gif';
-import { useState } from 'react';
-import { picks } from '../scripts/picksOfTheWeek.ts';
-import Footer from '../footer.tsx';
-import '../App.css';
-import NavBar from '../navbar.tsx';
-import MobileNavBar from '../mobileNavbar.tsx';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import Footer from "../footer";
+import StoreHeader from "../components/StoreHeader";
+import { picks } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/picksOfTheWeek";
+import hero from "../assets/backgrounds/front-slide-bg.png";
+import community from "../assets/backgrounds/community.gif";
 
-function App() {
-  const defaultText = "Hover over an album to see more details.";
-  const [description, setDescription] = useState(defaultText);
+const money = (value: number) =>
+  new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(
+    value,
+  );
+
+function RecordCard({ product, note }: { product: Product; note?: string }) {
+  const [failed, setFailed] = useState(false);
   return (
-    <div className='bg-black'>
-      <MobileNavBar />
-      <NavBar />
-      {/* 1. HERO SLIDE */}
-      <section
-        className="2xl:min-h-[calc(100vh-80px)] min-h-[calc(100vh-48px)] p-10 bg-cover flex flex-col justify-center text-white"
-        style={{ backgroundImage: `url(${bg1})` }}
-      >
-        <div className="flex flex-col 2xl:items-center">
-          <p className='text-6xl 2xl:text-8xl'>Handpicked records with love.</p>
-          <p className='mt-10 text-md'>From alternative rock to hip-hop and plenty of gems in between, we stock up on what we love and what you didn’t know you needed yet.</p>
-          <p className='mt-4 text-md'>New arrivals every week. Always digging.</p>
-          <a 
-            className='mt-10 px-20 py-5 bg-[#cbb79c] text-black rounded-full hover:opacity-90 transition text-center text-black hover:cursor-pointer'
-            href="/shop"
-          >
-            <p className='text-md'>Shop Now</p>
-          </a>
+    <article className="min-w-0">
+      <Link className="group block h-full" to={`/shop/product/${product.id}`}>
+        <div className="relative mb-4 aspect-square overflow-hidden bg-[#28231d] max-[640px]:mb-3">
+          {!failed && product.cover_image ? (
+            <img
+              className="block h-full w-full object-cover transition-transform duration-[250ms] group-hover:scale-[1.035] motion-reduce:transform-none motion-reduce:transition-none"
+              src={product.cover_image}
+              alt={`${product.artist} — ${product.title} cover`}
+              loading="lazy"
+              onError={() => setFailed(true)}
+            />
+          ) : (
+            <div className="grid h-full place-items-center text-[70px] text-[#cbb79c]" aria-label="Cover unavailable">
+              ♪
+            </div>
+          )}
+          {Number(product.stock) <= 0 && (
+            <span className="absolute bottom-3 left-3 bg-[#15120fe6] px-2.5 py-1 text-[11px]">Sold out</span>
+          )}
         </div>
-      </section>
-      {/* 2. ALBUMS PICKS */}
-      <section 
-        className="p-10 flex flex-col 2xl:flex-row justify-center 2xl:items-center w-full min-h-screen text-white gap-x-20"
-        style={{ backgroundImage: `url(${bg2})` }}
-      > 
-        <div className='flex-col'>
-          <p className='text-2xl 2xl:text-5xl'>Our album picks of the week</p>
-          <p className='2xl:mt-3 mb-5'>{description}</p>
+        <p className="mt-0 mb-1 text-xs text-[#c0b4a3] max-[640px]:text-[11px]">{product.artist}</p>
+        <h3 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] mt-0 mb-[9px] text-lg leading-[1.35] max-[640px]:text-base">{product.title}</h3>
+        <p className="mt-0 mb-3 text-xs text-[#c0b4a3] [overflow-wrap:anywhere] max-[640px]:text-[11px]">
+          {[product.medium, product.variant].filter(Boolean).join(" · ")}
+        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] [&_strong]:font-medium [&_span]:text-[11px] [&_span]:text-[#c0b4a3] max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-1">
+          <strong>{money(Number(product.price))}</strong>
+          <span>{Number(product.stock) > 0 ? "In stock" : "Sold out"}</span>
         </div>
-        <div className='items-center justify-center'>
-          <div className='grid grid-cols-4 gap-5 flex 2xl:items-center'>
-            {picks.map((album, index) => (
-              <div
-                key={index}
-                onMouseEnter={() => setDescription(album.description)}
-                onMouseLeave={() => setDescription(defaultText)}
-                className='flex-1 transition-transform duration-300 ease-in-out hover:scale-110 hover:cursor-pointer origin-center'
-              >
-                <img src={album.image} className='w-60 hover:cursor-pointer' />
-                <p className='text-md hover:cursor-pointer'>{album.title}</p>
-                <p className='text-sm hover:cursor-pointer'>{album.artist}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      {/* 3. ABOUT US PAGE */}
-      <section 
-        className='p-10 flex flex-col 2xl:flex-row 2xl:items-center justify-center w-full min-h-screen text-white gap-5'
-        style={{backgroundImage: `url(${bg3})`}}
-      > 
-        <div className=''>
-          <p className='text-2xl'>About Us</p>
-          <p className='text-md mt-4'>We started our shop just like any other record store. From poor self control and even more impulsive purchases, we fell 
-            in love with the hobby and the community around it. We’re just a couple of music lovers, and this store is our way of spreading the love and fun in collecting records. 
-            Hopefully, through us you can find your new favourites along the way.
-          </p>
-          <img src={gif1} className='object-contain mt-4' />
-        </div>
-      </section>
-      <Footer />
-    </div>
-  )
+        {note && <p className="my-3.5 text-[13px] leading-[1.65] text-[#c0b4a3] max-[640px]:text-xs">{note}</p>}
+        <span className="mt-4 flex justify-between border-t border-[#ffffff18] pt-3 text-xs">
+          View record <span aria-hidden="true">↗</span>
+        </span>
+      </Link>
+    </article>
+  );
 }
 
-export default App;
+export default function HomePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    fetch("http://localhost:3001/api/stock", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Stock unavailable");
+        return response.json();
+      })
+      .then((data: Product[]) => {
+        if (!Array.isArray(data)) throw new Error("Invalid stock");
+        setProducts(data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [attempt]);
+  const vinyl = products.filter(
+    (p) => !/\b(cd|cassette|dvd)\b/i.test(p.medium || ""),
+  );
+  const unique = vinyl.filter(
+    (p, i, all) =>
+      all.findIndex(
+        (other) =>
+          `${other.artist}|${other.title}`.toLowerCase() ===
+          `${p.artist}|${p.title}`.toLowerCase(),
+      ) === i,
+  );
+  // The supplied API has no arrival timestamp: newest numeric IDs are used here.
+  const arrivals = [...unique]
+    .sort((a, b) => Number(b.id) - Number(a.id))
+    .slice(0, 4);
+  const curated = picks.flatMap((rec) => {
+    const product = unique.find(
+      (p) =>
+        p.title.toLowerCase() === rec.title.toLowerCase() &&
+        p.artist.toLowerCase() === rec.artist.toLowerCase(),
+    );
+    return product ? [{ product, note: rec.description }] : [];
+  });
+  const genres = [
+    ...new Set(
+      vinyl.flatMap((p) =>
+        (p.genre || "")
+          .split(/[,;|]/)
+          .map((g) => g.trim())
+          .filter(Boolean),
+      ),
+    ),
+  ].slice(0, 8);
+  return (
+    <>
+      <div className="bg-[#15120f] text-[#efe8dc] font-[Arial,sans-serif] leading-[1.6] [&_*]:box-border [&_a]:no-underline [&_a]:text-inherit [&_a:focus-visible]:outline [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-[#cbb79c] [&_a:focus-visible]:outline-offset-[5px] [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-[#cbb79c] [&_button:focus-visible]:outline-offset-[5px]">
+        <StoreHeader />
+        <main id="main-content">
+          <section
+            className="flex min-h-[calc(100vh-81px)] supports-[height:100svh]:min-h-[calc(100svh-81px)] items-center bg-cover bg-center bg-no-repeat max-[640px]:min-h-[calc(100vh-69px)] max-[640px]:supports-[height:100svh]:min-h-[calc(100svh-69px)] max-[640px]:bg-[position:40%_center]"
+            style={{
+              backgroundImage: `linear-gradient(90deg, rgba(13,11,8,.82), rgba(13,11,8,.38)), url(${hero})`,
+            }}
+          >
+            <div className="mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px] py-[70px] max-[640px]:py-14">
+              <p className="mt-0 mb-[18px] text-[11px] tracking-[0.17em] uppercase text-[#cbb79c] max-[640px]:text-[10px]">Kopi’s Records · Singapore</p>
+              <h1 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] mt-0 mb-[26px] max-w-[900px] text-[clamp(44px,5.7vw,82px)] max-[640px]:text-[45px] max-[640px]:tracking-[-0.02em]">
+                Handpicked records
+                <br />
+                with love.
+              </h1>
+              <p className="mt-0 mb-[30px] max-w-[510px] text-base text-[#e0d7cb] max-[640px]:max-w-[340px] max-[640px]:text-sm">
+                From alternative rock to hip-hop, familiar favourites to your
+                next discovery. Come have a dig.
+              </p>
+              <div className="flex flex-wrap items-center gap-7 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-3.5">
+                <Link className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-7 rounded-[3px] border-0 bg-[#cbb79c] px-6 py-[13px] text-sm !text-[#15120f] hover:bg-[#dfcdb3]" to="/shop">
+                  Shop the records <span aria-hidden="true">↗</span>
+                </Link>
+                <a className="inline-block border-b border-[#cbb79c66] py-2 text-sm hover:!text-[#cbb79c]" href="#new-arrivals">
+                  Explore new arrivals ↓
+                </a>
+              </div>
+              <p className="mt-7 mb-3 text-xs text-[#c0b4a3] max-[640px]:mt-6">Always listening. Always digging.</p>
+            </div>
+          </section>
+          <section
+            className="scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px] mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px]"
+            id="new-arrivals"
+            aria-labelledby="arrivals-title"
+          >
+            <div className="mb-[30px] flex items-end justify-between gap-6 [&_p:first-child]:mb-2.5 max-[640px]:mb-6 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-3">
+              <div>
+                <p className="mt-0 mb-[18px] text-[11px] tracking-[0.17em] uppercase text-[#cbb79c] max-[640px]:text-[10px]">Fresh in the crates</p>
+                <h2 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] m-0 text-[clamp(32px,3.5vw,48px)]" id="arrivals-title">New arrivals</h2>
+              </div>
+              <Link className="inline-block border-b border-[#cbb79c66] py-2 text-sm hover:!text-[#cbb79c]" to="/shop?sort=newest">
+                View all records ↗
+              </Link>
+            </div>
+            {loading ? (
+              <p role="status" className="py-10 text-[#c0b4a3] [&_button]:mt-5">
+                Getting the crates ready…
+              </p>
+            ) : error ? (
+              <div className="py-10 text-[#c0b4a3] [&_button]:mt-5" role="status">
+                <p className="mt-0 mb-[18px] max-w-[490px] text-[15px] text-[#c0b4a3]">We couldn’t load the records right now.</p>
+                <button
+                  className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-7 rounded-[3px] border-0 bg-[#cbb79c] px-6 py-[13px] text-sm !text-[#15120f] hover:bg-[#dfcdb3]"
+                  onClick={() => setAttempt((a) => a + 1)}
+                >
+                  Try again
+                </button>
+              </div>
+            ) : arrivals.length ? (
+              <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7">
+                {arrivals.map((product) => (
+                  <RecordCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <p className="py-10 text-[#c0b4a3] [&_button]:mt-5">
+                The crates are being restocked. Check back soon.
+              </p>
+            )}
+          </section>
+          {!loading && !error && curated.length > 0 && (
+            <section className="border-y border-[#ffffff0c] bg-[#211b16]" aria-labelledby="picks-title">
+              <div className="mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px] scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px]">
+                <div className="mb-[30px] flex items-end justify-between gap-6 [&_p:first-child]:mb-2.5 max-[640px]:mb-6 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-3">
+                  <div>
+                    <p className="mt-0 mb-[18px] text-[11px] tracking-[0.17em] uppercase text-[#cbb79c] max-[640px]:text-[10px]">From our turntable to yours</p>
+                    <h2 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] m-0 text-[clamp(32px,3.5vw,48px)]" id="picks-title">Kopi’s picks</h2>
+                    <p className="mt-3.5 mb-3.5 max-w-[480px] text-sm text-[#c0b4a3]">
+                      A few records we’d put straight on the turntable.
+                    </p>
+                  </div>
+                  <Link to="/shop" className="inline-block border-b border-[#cbb79c66] py-2 text-sm hover:!text-[#cbb79c]">
+                    Find your next favourite ↗
+                  </Link>
+                </div>
+                <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7 min-[1001px]:grid-cols-3">
+                  {curated.map(({ product, note }) => (
+                    <RecordCard
+                      key={product.id}
+                      product={product}
+                      note={note}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+          {genres.length > 0 && (
+            <section
+              className="scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px] mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px]"
+              aria-labelledby="genres-title"
+            >
+              <div className="mb-[30px] flex items-end justify-between gap-6 [&_p:first-child]:mb-2.5 max-[640px]:mb-6 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-3">
+                <div>
+                  <p className="mt-0 mb-[18px] text-[11px] tracking-[0.17em] uppercase text-[#cbb79c] max-[640px]:text-[10px]">Follow your ears</p>
+                  <h2 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] m-0 text-[clamp(32px,3.5vw,48px)]" id="genres-title">What’s your rotation?</h2>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-10 max-[640px]:grid-cols-1">
+                {genres.map((genre, i) => (
+                  <Link
+                    className="flex items-center gap-5 border-b border-[#ffffff20] py-[22px] text-[22px] hover:!text-[#cbb79c] [&>span:last-child]:ml-auto max-[640px]:py-[18px] max-[640px]:text-xl"
+                    key={genre}
+                    to={`/shop?genre=${encodeURIComponent(genre)}`}
+                  >
+                    <span className="text-[11px] text-[#c0b4a3]">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span>{genre}</span>
+                    <span aria-hidden="true">↗</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+          <section
+            className="grid grid-cols-2 items-center gap-20 border-t border-[#ffffff18] max-[1000px]:gap-9 max-[640px]:grid-cols-1 max-[640px]:gap-7 mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px] scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px]"
+            aria-labelledby="about-title"
+          >
+            <img
+              className="w-full aspect-[4/3] object-cover"
+              src={community}
+              alt="Record collectors sharing their finds"
+              loading="lazy"
+            />
+            <div>
+              <p className="mt-0 mb-[18px] text-[11px] tracking-[0.17em] uppercase text-[#cbb79c] max-[640px]:text-[10px]">The people behind the crates</p>
+              <h2 className="font-[Marcellus,Georgia,serif] font-normal leading-[1.12] m-0 text-[clamp(32px,3.5vw,48px)] mb-6 max-[640px]:text-4xl" id="about-title">
+                Music we love.
+                <br />
+                Records to share.
+              </h2>
+              <p className="mt-0 mb-[18px] max-w-[490px] text-[15px] text-[#c0b4a3]">
+                Our shop started with a little poor self-control and a lot of
+                love for music. Collecting records brought us into a community
+                we wanted to be part of.
+              </p>
+              <p className="mt-0 mb-[18px] max-w-[490px] text-[15px] text-[#c0b4a3]">
+                Kopi’s is our way of passing that feeling on. We stock records
+                we love, share what’s on our turntable, and hope you find a new
+                favourite along the way.
+              </p>
+              <Link className="inline-block border-b border-[#cbb79c66] py-2 text-sm hover:!text-[#cbb79c]" to="/shop">
+                Have a dig through our records ↗
+              </Link>
+            </div>
+          </section>
+        </main>
+      </div>
+      <Footer />
+    </>
+  );
+}

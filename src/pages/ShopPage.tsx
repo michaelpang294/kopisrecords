@@ -1,17 +1,20 @@
-import '../App.css';
-import bg2 from '../assets/backgrounds/second-slide-bg.png';
-import NavBar from '../navbar';
-import { useEffect, useState } from 'react';
+import "../App.css";
+import bg2 from "../assets/backgrounds/second-slide-bg.png";
+import NavBar from "../navbar";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, SlidersHorizontal } from "lucide-react";
-import MobileNavBar from '../mobileNavbar';
-import Divider from '@mui/material/Divider';
-import Footer from '../footer';
-import { useNavigate } from "react-router-dom";
-import { DesktopCategories, MobileCategories } from '../categoriesHeader';
-import SearchBar from '../searchBar';
-import type { Product } from '../scripts/picksOfTheWeek';
+import MobileNavBar from "../mobileNavbar";
+import Divider from "@mui/material/Divider";
+import Footer from "../footer";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { DesktopCategories, MobileCategories } from "../categoriesHeader";
+import SearchBar from "../searchBar";
+import type { Product } from "../scripts/picksOfTheWeek";
 
 function ShopPage() {
+  const [params] = useSearchParams();
+  const genre = params.get("genre") || "";
+  const sort = params.get("sort") || "";
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeQuery, setActiveQuery] = useState("");
@@ -39,15 +42,34 @@ function ShopPage() {
 
   useEffect(() => {
     fetch("http://localhost:3001/api/stock")
-      .then(res => res.json())
+      .then((res) => res.json())
       .then((data: Product[]) => {
         setProducts(data);
         setFilteredProducts(data);
       });
   }, []);
 
+  useEffect(() => {
+    let next = genre
+      ? products.filter((p) =>
+          (p.genre || "")
+            .split(/[,;|]/)
+            .some((g) => g.trim().toLowerCase() === genre.toLowerCase()),
+        )
+      : [...products];
+    if (sort === "newest")
+      next = [...next].sort((a, b) => Number(b.id) - Number(a.id));
+    setFilteredProducts(next);
+    setActiveQuery(genre);
+    setCurrentPage(1);
+  }, [products, genre, sort]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeQuery]);
+
   return (
-    <div className='bg-black'>
+    <div className="bg-black">
       <MobileNavBar />
       <NavBar />
 
@@ -55,11 +77,10 @@ function ShopPage() {
         className="2xl:min-h-[calc(100vh-80px)] min-h-[calc(100vh-48px)] flex flex-col text-white"
         style={{ backgroundImage: `url(${bg2})` }}
       >
-
         {/* MOBILE */}
-        <div className='2xl:hidden'>
+        <div className="2xl:hidden">
           <MobileCategories />
-          <div className='px-5 mt-3'>
+          <div className="px-5 mt-3">
             <SearchBar
               products={products}
               setActiveQuery={setActiveQuery}
@@ -69,7 +90,7 @@ function ShopPage() {
         </div>
 
         {/* DESKTOP */}
-        <div className='hidden 2xl:flex flex-col bg-black/20 backdrop-blur-md text-white w-full items-center'>
+        <div className="hidden 2xl:flex flex-col bg-black/20 backdrop-blur-md text-white w-full items-center">
           <DesktopCategories />
           <SearchBar
             products={products}
@@ -79,33 +100,39 @@ function ShopPage() {
         </div>
 
         {/* MAIN SECTION */}
-        <section className='2xl:px-8 2xl:py-4 px-5 flex flex-col flex-1 min-h-full'>
-
+        <section className="2xl:px-8 2xl:py-4 px-5 flex flex-col flex-1 min-h-full">
           <div className="flex flex-col flex-1">
-
             {/* TOP BAR */}
             <div>
-              <div className='w-full flex justify-between text-sm items-center 2xl:mb-3 mb-1'>
-                <a className='bg-[#cbb79c] px-2 py-1 text-black rounded-sm hover:opacity-90 transition text-center hover:cursor-pointer'>
-                  <div className='flex items-center gap-1 text-xs 2xl:text-base'>
+              <div className="w-full flex justify-between text-sm items-center 2xl:mb-3 mb-1">
+                <a className="bg-[#cbb79c] px-2 py-1 text-black rounded-sm hover:opacity-90 transition text-center hover:cursor-pointer">
+                  <div className="flex items-center gap-1 text-xs 2xl:text-base">
                     <SlidersHorizontal size={14} />
                     <p>Filters</p>
                   </div>
                 </a>
 
-                <p className='text-xs 2xl:text-base'>
+                <p className="text-xs 2xl:text-base">
                   Search Results for{" "}
                   <strong>
                     {activeQuery ? `"${activeQuery}"` : " All Products"}
                   </strong>
                 </p>
 
-                <div className='flex items-center gap-x-2'>
-                  <p className='text-xs 2xl:text-base'>
-                    Page {currentPage} of {totalPages}
+                <div className="flex items-center gap-x-2">
+                  <p className="text-xs 2xl:text-base">
+                    Page {currentPage} of {Math.max(1, totalPages)}
                   </p>
-                  <ArrowLeft size={14} onClick={prevPage} className="cursor-pointer" />
-                  <ArrowRight size={14} onClick={nextPage} className="cursor-pointer" />
+                  <ArrowLeft
+                    size={14}
+                    onClick={prevPage}
+                    className="cursor-pointer"
+                  />
+                  <ArrowRight
+                    size={14}
+                    onClick={nextPage}
+                    className="cursor-pointer"
+                  />
                 </div>
               </div>
 
@@ -113,7 +140,12 @@ function ShopPage() {
             </div>
 
             {/* PRODUCTS GRID */}
-            <div className='mt-3 grid 2xl:grid-cols-8 grid-cols-4 2xl:gap-2 gap-1'>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 2xl:gap-2 gap-1">
+              {paginatedProducts.length === 0 && (
+                <p className="col-span-full py-8" role="status">
+                  No records found.
+                </p>
+              )}
               {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
@@ -125,18 +157,20 @@ function ShopPage() {
                     alt={product.title}
                     className="w-full h-auto mb-2"
                   />
-                  <p className='text-xs 2xl:text-base'>{product.title}</p>
-                  <p className='text-xs 2xl:text-sm'>{product.artist}</p>
-                  <p className='text-xs 2xl:text-sm mt-auto'>${product.price}</p>
+                  <p className="text-xs 2xl:text-base">{product.title}</p>
+                  <p className="text-xs 2xl:text-sm">{product.artist}</p>
+                  <p className="text-xs 2xl:text-sm mt-auto">
+                    ${product.price}
+                  </p>
                 </div>
               ))}
             </div>
 
             {/* BOTTOM PAGINATION (STICKS TO BOTTOM) */}
             {totalPages > 1 && (
-              <div className='mt-auto flex items-center justify-end gap-x-2 pt-4'>
-                <p className='text-xs 2xl:text-base'>
-                  Page {currentPage} of {totalPages}
+              <div className="mt-auto flex items-center justify-end gap-x-2 pt-4">
+                <p className="text-xs 2xl:text-base">
+                  Page {currentPage} of {Math.max(1, totalPages)}
                 </p>
                 <ArrowLeft
                   size={14}
@@ -150,7 +184,6 @@ function ShopPage() {
                 />
               </div>
             )}
-
           </div>
         </section>
       </section>

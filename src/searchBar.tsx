@@ -1,5 +1,5 @@
 import { RefreshCcw, Search, X } from "lucide-react";
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Product } from "./scripts/picksOfTheWeek";
 
@@ -14,7 +14,11 @@ type ActionSearchBarProps = {
   setFilteredProducts: (p: Product[]) => void;
 };
 
-export default function SearchBar({products, setActiveQuery, setFilteredProducts}: SearchBarProps) {
+export default function SearchBar({
+  products,
+  setActiveQuery,
+  setFilteredProducts,
+}: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasResults, setHasResults] = useState(false);
@@ -23,11 +27,11 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
   const navigate = useNavigate();
 
   return (
-    <div className='w-full max-w-full 2xl:max-w-xl pb-4'>
+    <div className="w-full max-w-full 2xl:max-w-xl pb-4">
       <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2">
           {loading ? (
-            <RefreshCcw size={14} className='text-black/60 animate-spin' />
+            <RefreshCcw size={14} className="text-black/60 animate-spin" />
           ) : hasResults ? (
             <X
               size={14}
@@ -36,7 +40,7 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
                 setQuery("");
                 setShowDropdown(false);
                 setHasResults(false);
-                setActiveQuery('');
+                setActiveQuery("");
                 setFilteredProducts(products);
               }}
             />
@@ -51,24 +55,32 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
             setQuery(e.target.value);
             setLoading(true);
             if (e.target.value.trim().length > 1) {
-              const searchResults = products.filter((p) =>
-                p.title.toLowerCase().includes(e.target.value) ||
-                p.artist.toLowerCase().includes(e.target.value) ||
-                p.genre.toLowerCase().includes(e.target.value)
+              const searchResults = products.filter(
+                (p) =>
+                  p.title
+                    .toLowerCase()
+                    .includes(e.target.value.toLowerCase()) ||
+                  p.artist
+                    .toLowerCase()
+                    .includes(e.target.value.toLowerCase()) ||
+                  p.genre.toLowerCase().includes(e.target.value.toLowerCase()),
               );
 
+              setLoading(false);
+              setSuggestions(searchResults);
+              setShowDropdown(searchResults.length > 0);
               if (searchResults.length > 0) {
                 setShowDropdown(true);
                 setHasResults(true);
                 setLoading(false);
                 setSuggestions(searchResults);
-              } 
+              }
             } else if (e.target.value.trim().length === 0) {
               setShowDropdown(false);
               setHasResults(false);
               setLoading(false);
               setFilteredProducts(products);
-              setActiveQuery('');
+              setActiveQuery("");
             } else {
               setLoading(true);
             }
@@ -78,17 +90,18 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
               const q = query.trim().toLowerCase();
 
               setActiveQuery(q);
-              
+
               if (!q) {
                 setFilteredProducts(products);
                 setShowDropdown(false);
                 return;
               }
 
-              const results = products.filter((p) =>
-                p.title.toLowerCase().includes(q) ||
-                p.artist.toLowerCase().includes(q) ||
-                p.genre.toLowerCase().includes(q)
+              const results = products.filter(
+                (p) =>
+                  p.title.toLowerCase().includes(q) ||
+                  p.artist.toLowerCase().includes(q) ||
+                  p.genre.toLowerCase().includes(q),
               );
 
               setFilteredProducts(results);
@@ -104,7 +117,9 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
               <div
                 key={s.id}
                 className="flex items-center gap-3 px-3 py-2 hover:bg-white/10 cursor-pointer"
-                onClick={() => {navigate(`/shop/${s.id}`)}}
+                onClick={() => {
+                  navigate(`/shop/product/${s.id}`);
+                }}
               >
                 <img
                   src={s.cover_image}
@@ -120,10 +135,13 @@ export default function SearchBar({products, setActiveQuery, setFilteredProducts
         )}
       </div>
     </div>
-  )
+  );
 }
 
-export function ActionSearchBar({products, setFilteredProducts}: ActionSearchBarProps) {
+export function ActionSearchBar({
+  products,
+  setFilteredProducts,
+}: ActionSearchBarProps) {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -134,10 +152,11 @@ export function ActionSearchBar({products, setFilteredProducts}: ActionSearchBar
       return;
     }
 
-    const results = products.filter((p) =>
-      p.title.toLowerCase().includes(q) ||
-      p.artist.toLowerCase().includes(q) ||
-      p.genre.toLowerCase().includes(q)
+    const results = products.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.artist.toLowerCase().includes(q) ||
+        p.genre.toLowerCase().includes(q),
     );
 
     setFilteredProducts(results);

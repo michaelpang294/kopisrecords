@@ -1,5 +1,5 @@
 import { useState } from "react";
-import ShopDropdown from "./shopDropdown";
+
 import { Menu, X } from "lucide-react";
 
 export default function MobileNavBar() {
@@ -14,14 +14,18 @@ export default function MobileNavBar() {
         <a href="/">
           <p
             className={`text-xl ${
-              open ? "opacity-20 visible transition-opacity duration-300" : "opacity-100 visible"
+              open
+                ? "opacity-20 visible transition-opacity duration-300"
+                : "opacity-100 visible"
             }`}
           >
             Kopi's Records
           </p>
         </a>
 
-        <button onClick={() => setOpen(true)}><Menu /></button>
+        <button onClick={() => setOpen(true)}>
+          <Menu />
+        </button>
       </header>
 
       {/* Overlay */}
@@ -41,14 +45,22 @@ export default function MobileNavBar() {
         {/* Header inside sidebar */}
         <div className="flex justify-between justify-end items-center p-5 border-b border-white/10 w-full gap-x-2">
           <p>Menu</p>
-          <button onClick={handleClose}><X /></button>
+          <button onClick={handleClose}>
+            <X />
+          </button>
         </div>
 
         {/* Links */}
         <div className="flex flex-col gap-4 p-5 text-sm">
-          <a href="/shop" onClick={handleClose}>Shop All</a>
-          <a href="/requests" onClick={handleClose}>Request</a>
-          <a href="/cart" onClick={handleClose}>Cart</a>
+          <a href="/shop" onClick={handleClose}>
+            Shop All
+          </a>
+          <a href="/requests" onClick={handleClose}>
+            Request
+          </a>
+          <a href="/cart" onClick={handleClose}>
+            Cart
+          </a>
         </div>
       </div>
     </>
