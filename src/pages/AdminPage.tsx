@@ -1,6 +1,4 @@
 import "../App.css";
-import NavBar from "../navbar";
-import MobileNavBar from "../mobileNavbar";
 import Footer from "../footer";
 import bg2 from "../assets/backgrounds/second-slide-bg.png";
 import { useState } from "react";
@@ -9,7 +7,6 @@ import CreateProductSection from "../actions/CreateProduct";
 import UpdateProductSection from "../actions/UpdateProduct";
 import StockLevelsSection from "../actions/StockLevels";
 import { actionCategories } from "../scripts/picksOfTheWeek";
-import { MobileActionsCategories } from "../categoriesHeader";
 
 function AdminPage() {
   const [password, setPassword] = useState("");
@@ -59,8 +56,6 @@ function AdminPage() {
 
   return (
     <div className="bg-black">
-      <MobileNavBar />
-      <NavBar />
       <section
         className="2xl:min-h-[calc(100vh-80px)] min-h-[calc(100vh-48px)] flex flex-col text-white"
         style={{ backgroundImage: `url(${bg2})` }}
@@ -93,9 +88,6 @@ function AdminPage() {
         ) : (
           // MAIN CONTENT
           <section className="flex flex-col flex-1">
-            <div className="2xl:hidden">
-              <MobileActionsCategories />
-            </div>
             <div className="flex flex-1 p-2 2xl:p-8 2xl:gap-8 2xl:gap-4">
               {/* LEFT SIDE */}
               <div className="h-full">

@@ -1,10 +1,7 @@
 import "../App.css";
 import bg2 from "../assets/backgrounds/second-slide-bg.png";
-import NavBar from "../navbar";
 import { useEffect, useState } from "react";
-import MobileNavBar from "../mobileNavbar";
 import Footer from "../footer";
-import { DesktopCategories, MobileCategories } from "../categoriesHeader";
 import SearchBar from "../searchBar";
 import { useParams } from "react-router-dom";
 import { Divider } from "@mui/material";
@@ -29,15 +26,12 @@ function ProductPage() {
 
   return (
     <div className="bg-black">
-      <MobileNavBar />
-      <NavBar />
       <section
         className="text-white"
         style={{ backgroundImage: `url(${bg2})` }}
       >
         {/* SHOW MOBILE HERE */}
         <div className="2xl:hidden">
-          <MobileCategories />
           <div className="px-5 mt-3">
             <SearchBar
               products={allProducts}
@@ -48,7 +42,6 @@ function ProductPage() {
         </div>
         {/* SHOW CATEGORIES AND SEARCH BAR FOR DESKTOP */}
         <div className="hidden 2xl:flex flex-col bg-black/20 backdrop-blur-md text-white w-full items-center">
-          <DesktopCategories />
           <SearchBar
             products={allProducts}
             setActiveQuery={setActiveQuery}

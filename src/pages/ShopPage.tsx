@@ -1,13 +1,10 @@
 import "../App.css";
 import bg2 from "../assets/backgrounds/second-slide-bg.png";
-import NavBar from "../navbar";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, SlidersHorizontal } from "lucide-react";
-import MobileNavBar from "../mobileNavbar";
 import Divider from "@mui/material/Divider";
 import Footer from "../footer";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { DesktopCategories, MobileCategories } from "../categoriesHeader";
 import SearchBar from "../searchBar";
 import type { Product } from "../scripts/picksOfTheWeek";
 
@@ -70,8 +67,6 @@ function ShopPage() {
 
   return (
     <div className="bg-black">
-      <MobileNavBar />
-      <NavBar />
 
       <section
         className="2xl:min-h-[calc(100vh-80px)] min-h-[calc(100vh-48px)] flex flex-col text-white"
@@ -79,7 +74,6 @@ function ShopPage() {
       >
         {/* MOBILE */}
         <div className="2xl:hidden">
-          <MobileCategories />
           <div className="px-5 mt-3">
             <SearchBar
               products={products}
@@ -91,7 +85,6 @@ function ShopPage() {
 
         {/* DESKTOP */}
         <div className="hidden 2xl:flex flex-col bg-black/20 backdrop-blur-md text-white w-full items-center">
-          <DesktopCategories />
           <SearchBar
             products={products}
             setActiveQuery={setActiveQuery}
