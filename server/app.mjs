@@ -1,6 +1,12 @@
+import { recoveryRoutes } from "./order-access.mjs";
 import { installAdminAuth } from "./admin-auth.mjs";
 import { adminOrderRoutes } from "./admin-orders.mjs";
-import { availableStock, checkoutRoutes, transaction } from "./checkout.mjs";
+import {
+  availableStock,
+  checkoutRoutes,
+  transaction,
+  orderResponse,
+} from "./checkout.mjs";
 import express from "express";
 import cors from "cors";
 import { fileURLToPath } from "node:url";
@@ -177,6 +183,7 @@ export function createApp(pool, origins, options = {}) {
 
   const requireAdmin = installAdminAuth(app, options);
   adminOrderRoutes(app, pool, requireAdmin);
+  recoveryRoutes(app, pool, { transaction, orderResponse, requireAdmin });
   checkoutRoutes(app, pool);
 
   app.get("/api/health", async (req, res) => {
@@ -238,11 +245,9 @@ export function createApp(pool, origins, options = {}) {
       !stockNumber(req.body?.stock) ||
       !stockNumber(req.body?.expectedStock)
     )
-      return res
-        .status(400)
-        .json({
-          error: "Enter a valid stock quantity and original stock count.",
-        });
+      return res.status(400).json({
+        error: "Enter a valid stock quantity and original stock count.",
+      });
     try {
       const saved = await transaction(pool, async (db) => {
         const product = await guardStock(

@@ -324,6 +324,7 @@ export default function CartPage() {
           <span aria-current="page" className="text-[#efe8dc]">
             Cart
           </span>
+          <Link to="/orders" className={`${focus} ml-auto inline-flex min-h-11 items-center text-[#cbb79c] underline underline-offset-4`}>Recent orders</Link>
         </nav>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4 lg:mb-8">
           <div>

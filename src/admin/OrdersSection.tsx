@@ -1,3 +1,4 @@
+import OrderLink from "../orders/OrderLink";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { adminJson } from "./adminApi";
 import { formatPrice } from "../cart/cartStorage";
@@ -70,6 +71,34 @@ export default function OrdersSection() {
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState(""),
     [notice, setNotice] = useState("");
+  const [issuedLink, setIssuedLink] = useState<{ id: string; token: string }>({
+    id: "",
+    token: "",
+  });
+  const [linkBusy, setLinkBusy] = useState(false);
+  async function issueLink() {
+    if (!order || linkBusy) return;
+    const id = order.id;
+    setLinkBusy(true);
+    setNotice("");
+    try {
+      const result = await adminJson<{ recoveryToken: string }>(
+        `/api/admin/orders/${id}/recovery`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        },
+      );
+      setIssuedLink({ id, token: result.recoveryToken });
+    } catch (err) {
+      setNotice(
+        err instanceof Error ? err.message : "Unable to create the order link.",
+      );
+    } finally {
+      setLinkBusy(false);
+    }
+  }
   const dialog = useRef<HTMLDialogElement>(null);
   const detailPanel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -331,6 +360,21 @@ export default function OrdersSection() {
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                disabled={linkBusy}
+                onClick={issueLink}
+                className={`${button} mb-4 w-full`}
+              >
+                {linkBusy
+                  ? "Creating private link…"
+                  : "Get customer order link"}
+              </button>
+              {issuedLink.id === order.id && (
+                <div className="mb-5">
+                  <OrderLink token={issuedLink.token} />
+                </div>
+              )}
               <h4 className="font-marcellus text-xl">Records</h4>
               <ul className="mt-2 divide-y divide-white/10">
                 {order.items.map((i) => (

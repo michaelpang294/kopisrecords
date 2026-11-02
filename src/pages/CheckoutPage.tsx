@@ -1,3 +1,12 @@
+import { API } from "../admin/adminApi";
+import OrderLink from "../orders/OrderLink";
+import {
+  newCheckoutId,
+  prepareRecovery,
+  rememberOrder,
+  tokenForOrder,
+  removeRecent,
+} from "../orders/orderRecovery";
 import {
   useCallback,
   useEffect,
@@ -19,10 +28,12 @@ type Order = {
   status: string;
   expiresAt?: string;
   serverTime: string;
+  recoveryToken?: string;
   items: { id: number; title: string; quantity: number; price: number }[];
 };
 const panel = "rounded-lg border border-white/10 bg-[#211b16]/95 p-5 sm:p-7";
-const input = "mt-2 mb-5 block min-h-11 w-full rounded-md border border-white/15 bg-[#15120f] p-3 text-sm text-white placeholder:text-[#c0b4a3]/60 outline-none focus:border-[#cbb79c]";
+const input =
+  "mt-2 mb-5 block min-h-11 w-full rounded-md border border-white/15 bg-[#15120f] p-3 text-sm text-[#efe8dc] outline-none focus:border-[#cbb79c]";
 export default function CheckoutPage() {
   const { items, completeOrder, storageMessage } = useCart();
   const completeOrderRef = useRef(completeOrder);
@@ -30,6 +41,7 @@ export default function CheckoutPage() {
     completeOrderRef.current = completeOrder;
   }, [completeOrder]);
   const finishedId = useRef("");
+  const accessReady = useRef(new Set<string>());
   const [method, setMethod] = useState("collection");
   const [order, setOrder] = useState<Order | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,13 +55,27 @@ export default function CheckoutPage() {
     }
   });
   const [restoring, setRestoring] = useState(Boolean(orderId));
+  const [recoveryToken, setRecoveryToken] = useState(() =>
+    tokenForOrder(orderId),
+  );
   const [now, setNow] = useState(() => Date.now());
   const offset = useRef(0);
   const acceptOrder = useCallback((value: Order, id: string) => {
-    const completed =
-      value.status === "payment_reported" || value.status === "paid";
+    const completed = [
+      "payment_reported",
+      "paid",
+      "ready_for_collection",
+      "dispatched",
+      "completed",
+    ].includes(value.status);
     // Ignore an older polling response after reporting payment succeeds.
     if (finishedId.current === id && !completed) return;
+    const token = value.recoveryToken || tokenForOrder(id);
+    if (token) {
+      setRecoveryToken(token);
+      rememberOrder(token, value, id);
+    }
+
     if (completed) {
       finishedId.current = id;
       completeOrderRef.current(id, value.items);
@@ -74,15 +100,30 @@ export default function CheckoutPage() {
     let active = true;
     async function refresh() {
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/checkout/${orderId}`,
-          { cache: "no-store" },
-        );
+        let token = tokenForOrder(orderId);
+        if (!accessReady.current.has(orderId)) {
+          if (!token) token = prepareRecovery(orderId);
+          const access = await fetch(
+            `${API}/api/checkout/${orderId}/recovery`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ recoveryToken: token }),
+            },
+          );
+          const grant = await access.json();
+          if (!access.ok)
+            throw Error(grant.error || "Unable to create your order link.");
+          accessReady.current.add(orderId);
+        }
+        const response = await fetch(`${API}/api/checkout/${orderId}`, {
+          cache: "no-store",
+        });
         const value = await response.json();
         if (!response.ok)
           throw new Error(value.error || "Unable to restore your order.");
         if (active) {
-          acceptOrder(value, orderId);
+          acceptOrder({ ...value, recoveryToken: token }, orderId);
           setError("");
         }
       } catch (err) {
@@ -116,7 +157,7 @@ export default function CheckoutPage() {
     setError("");
     try {
       const response = await fetch(
-        `http://localhost:3001/api/checkout/${orderId}/payment-reported`,
+        `${API}/api/checkout/${orderId}/payment-reported`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -140,6 +181,7 @@ export default function CheckoutPage() {
   function startAgain() {
     finishedId.current = "";
     setOrder(null);
+    setRecoveryToken("");
     setOrderId("");
     request.current = { signature: "", id: "" };
     setError("");
@@ -164,7 +206,8 @@ export default function CheckoutPage() {
     };
     const signature = JSON.stringify(body);
     if (signature !== request.current.signature)
-      request.current = { signature, id: crypto.randomUUID() };
+      request.current = { signature, id: newCheckoutId() };
+    const token = prepareRecovery(request.current.id);
     try {
       sessionStorage.setItem("kopis-checkout-hold", request.current.id);
     } catch {
@@ -173,15 +216,33 @@ export default function CheckoutPage() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:3001/api/checkout", {
+      const res = await fetch(`${API}/api/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, requestId: request.current.id }),
+        body: JSON.stringify({
+          ...body,
+          requestId: request.current.id,
+          recoveryToken: token,
+        }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Checkout unavailable.");
+      if (!res.ok) {
+        if (res.status === 400) {
+          removeRecent(token);
+          try {
+            sessionStorage.removeItem("kopis-checkout-hold");
+          } catch {
+            /* Storage unavailable. */
+          }
+        }
+        throw new Error(result.error || "Checkout unavailable.");
+      }
       const id = request.current.id;
-      acceptOrder(result, id);
+      accessReady.current.add(id);
+      acceptOrder(
+        { ...result, recoveryToken: result.recoveryToken || token },
+        id,
+      );
       if (result.status === "payment_reported" || result.status === "paid")
         return;
       setOrderId(id);
@@ -213,7 +274,10 @@ export default function CheckoutPage() {
             <Link to="/cart" className="underline">
               Cart
             </Link>{" "}
-            / Checkout
+            / Checkout{" "}
+            <Link to="/orders" className="ml-4 text-[#cbb79c] underline">
+              Recent orders
+            </Link>
           </nav>
           <p className="mb-2 text-[10px] uppercase tracking-[.18em] text-[#cbb79c]">
             Nearly on your turntable
@@ -280,6 +344,7 @@ export default function CheckoutPage() {
                   {storageMessage}
                 </p>
               )}
+              <OrderLink token={recoveryToken} />
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/shop"
@@ -363,7 +428,8 @@ export default function CheckoutPage() {
                 </p>
               </section>
               <section className={panel}>
-                <p className="mb-4 text-xs text-[#cbb79c]">
+                <OrderLink token={recoveryToken} />
+                <p className="mb-4 mt-5 text-xs text-[#cbb79c]">
                   {order.status === "payment_reported" ||
                   order.status === "paid"
                     ? order.status === "paid"
@@ -468,7 +534,6 @@ export default function CheckoutPage() {
                     required
                     autoComplete="name"
                     maxLength={120}
-                    placeholder="How can we address you?"
                     className={input}
                   />
                 </label>

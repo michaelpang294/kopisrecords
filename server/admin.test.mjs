@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { createApp } from "./app.mjs";
 import { hashPassword } from "./admin-auth.mjs";
 import { database } from "./testing/fake-database.mjs";
@@ -229,4 +229,133 @@ test("mobile stock changes reject stale counts and held-copy reductions, preserv
   );
   assert.equal(staleEdit.status, 409);
   assert.equal(pool.state.stock, 6);
+});
+
+test("private recovery persists only hashes, masks personal data, reuses order and reports payment without renewing hold", async (t) => {
+  const { pool, call, login } = await setup(t);
+  const requestId = randomUUID(),
+    token = randomBytes(32).toString("hex");
+  const body = {
+    requestId,
+    recoveryToken: token,
+    items: [{ id: 1, quantity: 1 }],
+    name: "Private customer",
+    contact: "@private",
+    fulfilment: "delivery",
+    address: "Private address",
+    postal: "199794",
+  };
+  const created = await call("/api/checkout", body);
+  assert.equal(created.status, 200);
+  assert.equal(created.value.recoveryToken, token);
+  assert.equal(
+    pool.state.access.get(createHash("sha256").update(token).digest("hex")),
+    requestId,
+  );
+  assert.ok(!pool.state.access.has(token));
+  assert.ok(!pool.state.orders.get(requestId).details.includes(token));
+  const auth = { Authorization: `Bearer ${token}` };
+  const first = await call("/api/order-recovery", undefined, "", auth);
+  assert.equal(first.status, 200);
+  assert.equal(first.value.reference, created.value.reference);
+  assert.equal(first.value.expiresAt, created.value.expiresAt);
+  for (const key of [
+    "name",
+    "contact",
+    "address",
+    "postal",
+    "fingerprint",
+    "recoveryToken",
+  ])
+    assert.equal(first.value[key], undefined);
+  const again = await call("/api/checkout", body);
+  assert.equal(again.value.expiresAt, created.value.expiresAt);
+  assert.equal(pool.state.orders.size, 1);
+  assert.equal(pool.state.holds.length, 1);
+  assert.equal(
+    (
+      await call("/api/order-recovery", undefined, "", {
+        Authorization: "Bearer " + created.value.reference,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await call("/api/order-recovery", undefined, "", {
+        Authorization: "Bearer " + "0".repeat(64),
+      })
+    ).status,
+    404,
+  );
+  let report = await call("/api/order-recovery/payment-reported", {}, "", auth);
+  assert.equal(report.value.status, "payment_reported");
+  assert.equal(report.value.qr, null);
+  assert.equal(report.value.expiresAt, created.value.expiresAt);
+  assert.equal(pool.state.stock, 5);
+  report = await call("/api/order-recovery/payment-reported", {}, "", auth);
+  assert.equal(report.status, 200);
+  assert.equal(pool.state.holds.length, 1);
+  const cookie = await login();
+  await call(
+    `/api/admin/orders/${requestId}/action`,
+    { action: "paid", confirmed: true, paymentVerified: true },
+    cookie,
+  );
+  await call(
+    `/api/admin/orders/${requestId}/action`,
+    { action: "dispatched", confirmed: true },
+    cookie,
+  );
+  assert.equal(
+    (await call("/api/order-recovery", undefined, "", auth)).value.status,
+    "dispatched",
+  );
+  assert.equal(pool.state.stock, 4);
+  assert.equal(
+    (await call(`/api/admin/orders/${requestId}/recovery`, {})).status,
+    401,
+  );
+  const additional = await call(
+    `/api/admin/orders/${requestId}/recovery`,
+    {},
+    cookie,
+  );
+  assert.equal(additional.status, 200);
+  assert.notEqual(additional.value.recoveryToken, token);
+  assert.equal(
+    (
+      await call("/api/order-recovery", undefined, "", {
+        Authorization: `Bearer ${additional.value.recoveryToken}`,
+      })
+    ).status,
+    200,
+  );
+});
+test("recovery rejects expired payments and never extends expiry", async (t) => {
+  const { pool, call } = await setup(t);
+  const id = randomUUID();
+  const created = await call("/api/checkout", {
+    requestId: id,
+    items: [{ id: 1, quantity: 1 }],
+    name: "Test",
+    contact: "@test",
+    fulfilment: "collection",
+  });
+  const token = created.value.recoveryToken;
+  const row = pool.state.orders.get(id),
+    details = JSON.parse(row.details);
+  details.expiresAt = new Date(Date.now() - 1000).toISOString();
+  row.details = JSON.stringify(details);
+  pool.state.holds[0].expires_at = Date.now() - 1000;
+  const auth = { Authorization: `Bearer ${token}` };
+  const recovered = await call("/api/order-recovery", undefined, "", auth);
+  assert.equal(recovered.value.status, "expired");
+  assert.equal(recovered.value.qr, null);
+  assert.equal(recovered.value.expiresAt, details.expiresAt);
+  assert.equal(
+    (await call("/api/order-recovery/payment-reported", {}, "", auth)).status,
+    409,
+  );
+  assert.equal(pool.state.orders.size, 1);
 });

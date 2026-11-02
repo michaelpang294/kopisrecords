@@ -9,6 +9,8 @@ import AdminPage from "./pages/AdminPage";
 import CartPage from "./pages/CartPage";
 
 import CheckoutPage from "./pages/CheckoutPage";
+import OrderPage from "./pages/OrderPage";
+import RecentOrdersPage from "./pages/RecentOrdersPage";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="/request" element={<RequestRecordPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order" element={<OrderPage />} />
+        <Route path="/orders" element={<RecentOrdersPage />} />
 
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/:action" element={<AdminPage />} />

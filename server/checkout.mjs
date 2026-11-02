@@ -1,3 +1,4 @@
+import { grantRecovery } from "./order-access.mjs";
 import QRCode from "qrcode";
 import { createHash } from "node:crypto";
 export function crc16(text) {
@@ -52,6 +53,9 @@ export async function ensureOrders(pool) {
   await pool.execute(
     `CREATE TABLE IF NOT EXISTS checkout_order_events (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,order_id CHAR(36) NOT NULL,action VARCHAR(40) NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX(order_id)) ENGINE=InnoDB`,
   );
+  await pool.execute(
+    `CREATE TABLE IF NOT EXISTS checkout_order_recovery (token_hash CHAR(64) PRIMARY KEY,order_id CHAR(36) NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX(order_id)) ENGINE=InnoDB`,
+  );
 }
 export function checkoutRoutes(app, pool) {
   const attempts = new Map();
@@ -76,6 +80,11 @@ export function checkoutRoutes(app, pool) {
       };
       if (!b || !/^[a-f0-9-]{36}$/i.test(b.requestId || ""))
         fail("Invalid checkout request.");
+      if (
+        b.recoveryToken !== undefined &&
+        !/^[a-f0-9]{64}$/.test(b.recoveryToken)
+      )
+        fail("Invalid recovery token.");
       if (!Array.isArray(b.items) || !b.items.length || b.items.length > 100)
         fail("Your cart must contain 1–100 records.");
       const ids = new Set();
@@ -130,7 +139,12 @@ export function checkoutRoutes(app, pool) {
             e.status = 409;
             throw e;
           }
-          return await orderResponse(db, existing[0]);
+          const recoveryToken = await grantRecovery(
+            db,
+            b.requestId,
+            b.recoveryToken,
+          );
+          return { ...(await orderResponse(db, existing[0])), recoveryToken };
         }
         const [stock] = await db.execute(
           `SELECT id,title,artist,price,stock FROM stock WHERE id IN (${b.items.map(() => "?").join(",")}) ORDER BY id FOR UPDATE`,
@@ -191,11 +205,19 @@ export function checkoutRoutes(app, pool) {
             [b.requestId, line.id, line.quantity, new Date(expiresAt)],
           );
         // Build the response before commit, but send only after the transaction commits.
-        return await orderResponse(db, {
-          id: b.requestId,
-          status: order.status,
-          details: order,
-        });
+        const recoveryToken = await grantRecovery(
+          db,
+          b.requestId,
+          b.recoveryToken,
+        );
+        return {
+          ...(await orderResponse(db, {
+            id: b.requestId,
+            status: order.status,
+            details: order,
+          })),
+          recoveryToken,
+        };
       }).then((result) => {
         if (!res.headersSent) res.json(result);
       });

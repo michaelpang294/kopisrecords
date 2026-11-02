@@ -1,6 +1,7 @@
 export function database(stock = 1) {
   const state = {
     orders: new Map(),
+    access: new Map(),
     holds: [],
     fulfilment: new Map(),
     events: [],
@@ -8,6 +9,26 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (sql.startsWith("SELECT order_id FROM checkout_order_recovery"))
+      return [
+        [
+          ...(state.access.has(args[0])
+            ? [{ order_id: state.access.get(args[0]) }]
+            : []),
+        ],
+      ];
+    if (sql.startsWith("INSERT INTO checkout_order_recovery")) {
+      state.access.set(args[0], args[1]);
+      return [{}];
+    }
+    if (sql.startsWith("SELECT status FROM checkout_fulfilment"))
+      return [
+        [
+          ...(state.fulfilment.has(args[0])
+            ? [{ status: state.fulfilment.get(args[0]) }]
+            : []),
+        ],
+      ];
     if (sql.startsWith("CREATE TABLE") || sql.startsWith("INSERT IGNORE"))
       return [{}];
     if (
