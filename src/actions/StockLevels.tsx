@@ -1,3 +1,4 @@
+import { adminFetch } from "../admin/adminApi";
 import { ActionSearchBar } from "../searchBar";
 import { useEffect, useState } from "react";
 import type { Product } from "../scripts/picksOfTheWeek";
@@ -9,17 +10,22 @@ function StockLevelsSection() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/stock?inventory=on-hand")
-      .then(res => res.json())
+    adminFetch("http://localhost:3001/api/stock?inventory=on-hand")
+      .then((res) => res.json())
       .then((data: Product[]) => {
         const sorted = data.sort((a, b) => b.id - a.id);
         setProducts(sorted);
         setFilteredProducts(sorted);
-      });
+      })
+      .catch((err) =>
+        setMessage(
+          err instanceof Error ? err.message : "Unable to load stock.",
+        ),
+      );
   }, []);
 
   const handleChange = (id: number, field: keyof Product, value: any) => {
-    const original = filteredProducts.find(p => p.id === id);
+    const original = filteredProducts.find((p) => p.id === id);
     if (!original) return;
 
     const updated = {
@@ -34,7 +40,7 @@ function StockLevelsSection() {
   };
 
   const adjustStock = (id: number, delta: number) => {
-    const original = filteredProducts.find(p => p.id === id);
+    const original = filteredProducts.find((p) => p.id === id);
     if (!original) return;
 
     const current = dirty[id] ?? original;
@@ -57,27 +63,32 @@ function StockLevelsSection() {
   const saveAll = async () => {
     const entries = Object.values(dirty);
 
-    await Promise.all(
-      entries.map(async (product) => {
-        await fetch(`http://localhost:3001/api/stock/${product.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...product,
-            stock: Number(product.stock),
-          }),
-        });
-      })
-    );
+    try {
+      await Promise.all(
+        entries.map(async (product) => {
+          await adminFetch(`http://localhost:3001/api/stock/${product.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...product,
+              stock: Number(product.stock),
+            }),
+          });
+        }),
+      );
 
-    setDirty({});
-    setMessage("✅ All changes saved");
-    location.reload();
+      setDirty({});
+      setMessage("✅ All changes saved");
+      location.reload();
+    } catch (err) {
+      setMessage(
+        err instanceof Error ? err.message : "Unable to save stock changes.",
+      );
+    }
   };
 
   return (
     <div className="flex flex-col">
-
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-lg font-semibold">Stock Table</p>
@@ -87,9 +98,10 @@ function StockLevelsSection() {
             onClick={saveAll}
             className={`
               bg-green-500 text-black w-40 px-4 rounded text-sm hover:opacity-80 transition
-              ${Object.keys(dirty).length > 0
-                ? "opacity-100"
-                : "opacity-0 pointer-events-none"
+              ${
+                Object.keys(dirty).length > 0
+                  ? "opacity-100"
+                  : "opacity-0 pointer-events-none"
               }
             `}
           >
@@ -106,7 +118,6 @@ function StockLevelsSection() {
       {/* TABLE */}
       <div className="flex-1 overflow-auto border border-white/10 rounded">
         <table className="w-full text-sm">
-
           <thead className="bg-black/60 sticky top-0">
             <tr className="text-left text-gray-300">
               <th className="p-3">Artist</th>
@@ -129,7 +140,6 @@ function StockLevelsSection() {
                     isDirty ? "bg-red-500/30" : "hover:bg-white/5"
                   }`}
                 >
-
                   {/* READ ONLY FIELDS */}
                   <td className="p-2">{row.artist}</td>
                   <td className="p-2">{row.title}</td>
@@ -139,7 +149,6 @@ function StockLevelsSection() {
                   {/* STOCK ONLY EDITABLE */}
                   <td className="p-2">
                     <div className="flex items-center justify-end gap-2">
-
                       <button
                         onClick={() => adjustStock(p.id, -1)}
                         className="w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded"
@@ -161,21 +170,16 @@ function StockLevelsSection() {
                       >
                         +
                       </button>
-
                     </div>
                   </td>
-
                 </tr>
               );
             })}
           </tbody>
-
         </table>
       </div>
 
-      {message && (
-        <p className="text-xs text-gray-300 mt-2">{message}</p>
-      )}
+      {message && <p className="text-xs text-gray-300 mt-2">{message}</p>}
     </div>
   );
 }

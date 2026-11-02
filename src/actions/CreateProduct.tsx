@@ -1,3 +1,5 @@
+import RecordTags from "../admin/RecordTags";
+import { adminFetch } from "../admin/adminApi";
 import { useState } from "react";
 
 function CreateProductSection() {
@@ -12,10 +14,12 @@ function CreateProductSection() {
     variant: "",
     released: "",
     barcode: "",
-    stock: "",
+    stock: "1",
+    tags: ["new_arrival"] as string[],
   });
 
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<any>) => {
     setForm({
@@ -25,8 +29,11 @@ function CreateProductSection() {
   };
 
   const handleSubmit = async () => {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
     try {
-      const res = await fetch("http://localhost:3001/api/stock", {
+      const res = await adminFetch("http://localhost:3001/api/stock", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,13 +60,16 @@ function CreateProductSection() {
           variant: "",
           released: "",
           barcode: "",
-          stock: "",
+          stock: "1",
+          tags: ["new_arrival"] as string[],
         });
       } else {
         setMessage("❌ " + data.error);
       }
-    } catch {
-      setMessage("❌ Error creating product");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Error creating product");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -72,14 +82,31 @@ function CreateProductSection() {
 
       {/* FORM */}
       <div className="flex-1 overflow-y-auto space-y-6">
-
         {/* BASIC INFO */}
         <div>
           <p className="text-sm text-gray-400 mb-2">Basic Info</p>
           <div className="grid grid-cols-2 gap-3">
-            <input name="title" value={form.title} onChange={handleChange} placeholder="Title" className={`${inputClass} col-span-2`} />
-            <input name="artist" value={form.artist} onChange={handleChange} placeholder="Artist" className={inputClass} />
-            <input name="genre" value={form.genre} onChange={handleChange} placeholder="Genre" className={inputClass} />
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Title"
+              className={`${inputClass} col-span-2`}
+            />
+            <input
+              name="artist"
+              value={form.artist}
+              onChange={handleChange}
+              placeholder="Artist"
+              className={inputClass}
+            />
+            <input
+              name="genre"
+              value={form.genre}
+              onChange={handleChange}
+              placeholder="Genre"
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -87,9 +114,27 @@ function CreateProductSection() {
         <div>
           <p className="text-sm text-gray-400 mb-2">Pricing & Stock</p>
           <div className="grid grid-cols-3 gap-3">
-            <input name="price" value={form.price} onChange={handleChange} placeholder="Price" className={inputClass} />
-            <input name="stock" value={form.stock} onChange={handleChange} placeholder="Stock" className={inputClass} />
-            <input name="barcode" value={form.barcode} onChange={handleChange} placeholder="Barcode" className={inputClass} />
+            <input
+              name="price"
+              value={form.price}
+              onChange={handleChange}
+              placeholder="Price"
+              className={inputClass}
+            />
+            <input
+              name="stock"
+              value={form.stock}
+              onChange={handleChange}
+              placeholder="Stock"
+              className={inputClass}
+            />
+            <input
+              name="barcode"
+              value={form.barcode}
+              onChange={handleChange}
+              placeholder="Barcode"
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -106,10 +151,28 @@ function CreateProductSection() {
               <option value="Vinyl">Vinyl</option>
               <option value="CD">CD</option>
             </select>
-            <input name="variant" value={form.variant} onChange={handleChange} placeholder="Variant" className={inputClass} />
-            <input name="released" value={form.released} onChange={handleChange} placeholder="Year" className={inputClass} />
+            <input
+              name="variant"
+              value={form.variant}
+              onChange={handleChange}
+              placeholder="Variant"
+              className={inputClass}
+            />
+            <input
+              name="released"
+              value={form.released}
+              onChange={handleChange}
+              placeholder="Year"
+              className={inputClass}
+            />
           </div>
         </div>
+
+        <RecordTags
+          value={form.tags}
+          newListing
+          onChange={(tags) => setForm((current) => ({ ...current, tags }))}
+        />
 
         {/* IMAGE */}
         <div>
@@ -140,14 +203,13 @@ function CreateProductSection() {
       <div className="mt-4 flex items-center justify-between">
         <button
           onClick={handleSubmit}
+          disabled={busy}
           className="bg-[#cbb79c] text-black px-4 py-2 rounded hover:opacity-80"
         >
-          <p>Create</p>
+          <p>{busy ? "Creating…" : "Create"}</p>
         </button>
 
-        {message && (
-          <p className="text-sm text-gray-300">{message}</p>
-        )}
+        {message && <p className="text-sm text-gray-300">{message}</p>}
       </div>
     </div>
   );

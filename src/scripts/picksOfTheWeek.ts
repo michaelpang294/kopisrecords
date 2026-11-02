@@ -15,6 +15,7 @@ export type Product = {
   barcode: string;
   stock: number;
   variant: string;
+  tags?: string[] | string | null;
 };
 
 export const shopCategories = [

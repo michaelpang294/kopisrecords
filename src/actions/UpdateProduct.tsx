@@ -1,3 +1,6 @@
+import RecordTags from "../admin/RecordTags";
+import { readRecordTags } from "../admin/recordTagOptions";
+import { adminFetch } from "../admin/adminApi";
 import { useEffect, useState } from "react";
 import type { Product } from "../scripts/picksOfTheWeek";
 import { ActionSearchBar } from "../searchBar";
@@ -10,7 +13,9 @@ function UpdateProductSection() {
   const [editForm, setEditForm] = useState<Product | null>(null);
   const [message, setMessage] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     if (!editForm) return;
 
     setEditForm({
@@ -23,7 +28,7 @@ function UpdateProductSection() {
     if (!editForm) return;
 
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `http://localhost:3001/api/stock/${editForm.id}`,
         {
           method: "PUT",
@@ -31,7 +36,7 @@ function UpdateProductSection() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(editForm),
-        }
+        },
       );
 
       const data = await res.json();
@@ -41,17 +46,16 @@ function UpdateProductSection() {
 
         // also update local list instantly
         setProducts((prev) =>
-          prev.map((p) => (p.id === editForm.id ? editForm : p))
+          prev.map((p) => (p.id === editForm.id ? data : p)),
         );
 
         setChosenProduct(null);
         setEditForm(null);
-
       } else {
         setMessage("❌ " + data.error);
       }
     } catch (err) {
-      setMessage("❌ Server error");
+      setMessage(err instanceof Error ? err.message : "Server error");
     }
   };
 
@@ -59,17 +63,17 @@ function UpdateProductSection() {
     if (!editForm) return;
 
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this product?"
+      "Are you sure you want to delete this product?",
     );
 
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `http://localhost:3001/api/stock/${editForm.id}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       const data = await res.json();
@@ -78,9 +82,7 @@ function UpdateProductSection() {
         setMessage("🗑️ Product deleted");
 
         // remove from local list instantly
-        setProducts((prev) =>
-          prev.filter((p) => p.id !== editForm.id)
-        );
+        setProducts((prev) => prev.filter((p) => p.id !== editForm.id));
 
         setChosenProduct(null);
         setEditForm(null);
@@ -88,22 +90,26 @@ function UpdateProductSection() {
         setMessage("❌ " + data.error);
       }
     } catch (err) {
-      setMessage("❌ Server error");
+      setMessage(err instanceof Error ? err.message : "Server error");
     }
   };
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/stock?inventory=on-hand")
-      .then(res => res.json())
+    adminFetch("http://localhost:3001/api/stock?inventory=on-hand")
+      .then((res) => res.json())
       .then((data: Product[]) => {
         const sorted = data.sort((a, b) => b.id - a.id); // newest first
         setProducts(sorted);
-      });
+      })
+      .catch((err) =>
+        setMessage(
+          err instanceof Error ? err.message : "Unable to load records.",
+        ),
+      );
   }, []);
 
   return (
     <div className="flex flex-col h-full">
-
       <div className="flex justify-between items-center">
         <p className="text-lg font-semibold mb-4">Edit Products</p>
         {!chosenProduct && (
@@ -113,11 +119,20 @@ function UpdateProductSection() {
           />
         )}
         {chosenProduct && (
-          <div onClick={handleDelete} className="cursor-pointer hover:text-red-500 transition text-gray-400">
+          <div
+            onClick={handleDelete}
+            className="cursor-pointer hover:text-red-500 transition text-gray-400"
+          >
             <Trash size={16} />
           </div>
         )}
       </div>
+
+      {!chosenProduct && message && (
+        <p role="status" className="mb-3 text-sm text-[#c0b4a3]">
+          {message}
+        </p>
+      )}
 
       {/* LIST VIEW */}
       {!chosenProduct ? (
@@ -125,7 +140,10 @@ function UpdateProductSection() {
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              onClick={() => {setChosenProduct(product); setEditForm(product)}}
+              onClick={() => {
+                setChosenProduct(product);
+                setEditForm({ ...product, tags: readRecordTags(product.tags) });
+              }}
               className="bg-black/40 p-1 rounded flex justify-between items-center hover:bg-white/10 cursor-pointer"
             >
               <div className="flex gap-x-2 items-center">
@@ -164,7 +182,6 @@ function UpdateProductSection() {
             />
 
             <div className="flex flex-col gap-2 w-full">
-
               {/* TITLE */}
               <input
                 name="title"
@@ -191,7 +208,6 @@ function UpdateProductSection() {
                 className="bg-white text-black p-1 text-sm"
                 placeholder="Price"
               />
-
             </div>
           </div>
 
@@ -206,7 +222,6 @@ function UpdateProductSection() {
 
           {/* GRID FIELDS */}
           <div className="grid grid-cols-2 gap-2">
-
             <input
               name="genre"
               value={editForm?.genre || ""}
@@ -254,8 +269,16 @@ function UpdateProductSection() {
               className="bg-white text-black p-1 text-sm"
               placeholder="Stock"
             />
-
           </div>
+
+          <RecordTags
+            value={editForm?.tags}
+            onChange={(tags) =>
+              setEditForm((current) =>
+                current ? { ...current, tags } : current,
+              )
+            }
+          />
 
           {/* DESCRIPTION */}
           <textarea
@@ -274,9 +297,7 @@ function UpdateProductSection() {
             <p>Save Changes</p>
           </button>
 
-          {message && (
-            <p className="text-xs text-gray-300 mt-2">{message}</p>
-          )}
+          {message && <p className="text-xs text-gray-300 mt-2">{message}</p>}
         </div>
       )}
     </div>

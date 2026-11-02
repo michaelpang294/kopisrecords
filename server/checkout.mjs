@@ -46,6 +46,12 @@ export async function ensureOrders(pool) {
     quantity INT UNSIGNED NOT NULL, expires_at DATETIME(3) NOT NULL,
     state VARCHAR(20) NOT NULL DEFAULT 'active',
     PRIMARY KEY (order_id,product_id), INDEX (product_id,state,expires_at)) ENGINE=InnoDB`);
+  await pool.execute(
+    `CREATE TABLE IF NOT EXISTS checkout_fulfilment (order_id CHAR(36) PRIMARY KEY,status VARCHAR(40) NOT NULL,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB`,
+  );
+  await pool.execute(
+    `CREATE TABLE IF NOT EXISTS checkout_order_events (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,order_id CHAR(36) NOT NULL,action VARCHAR(40) NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX(order_id)) ENGINE=InnoDB`,
+  );
 }
 export function checkoutRoutes(app, pool) {
   const attempts = new Map();
@@ -365,6 +371,10 @@ export async function manageOrder(pool, action, reference) {
         "UPDATE checkout_orders SET status = 'paid' WHERE id = ?",
         [row.id],
       );
+      await db.execute(
+        "INSERT INTO checkout_order_events (order_id,action) VALUES (?,?)",
+        [row.id, "paid"],
+      );
       return `Marked ${details.reference} paid and deducted stock once.`;
     }
     if (row.status === "paid")
@@ -379,6 +389,11 @@ export async function manageOrder(pool, action, reference) {
       "UPDATE checkout_orders SET status = 'cancelled' WHERE id = ?",
       [row.id],
     );
+    if (row.status !== "cancelled")
+      await db.execute(
+        "INSERT INTO checkout_order_events (order_id,action) VALUES (?,?)",
+        [row.id, "cancelled"],
+      );
     return `Cancelled ${details.reference}; holds released. Verify bank receipts before cancelling payment-reported orders.`;
   });
 }
