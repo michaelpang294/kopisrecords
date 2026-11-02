@@ -22,8 +22,7 @@ type Order = {
   items: { id: number; title: string; quantity: number; price: number }[];
 };
 const panel = "rounded-lg border border-white/10 bg-[#211b16]/95 p-5 sm:p-7";
-const input =
-  "mt-2 mb-5 block min-h-11 w-full rounded-md border border-white/15 bg-[#15120f] p-3 text-sm text-[#15120F] outline-none focus:border-[#cbb79c]";
+const input = "mt-2 mb-5 block min-h-11 w-full rounded-md border border-white/15 bg-[#15120f] p-3 text-sm text-white placeholder:text-[#c0b4a3]/60 outline-none focus:border-[#cbb79c]";
 export default function CheckoutPage() {
   const { items, completeOrder, storageMessage } = useCart();
   const completeOrderRef = useRef(completeOrder);

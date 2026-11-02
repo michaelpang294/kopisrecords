@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import Footer from "../footer";
 
 const inputClass =
-  "mt-3 block w-full rounded-md border border-white/15 bg-[#15120f] px-4 py-3.5 text-base text-[#15120F] placeholder:text-[#c0b4a3]/60 transition-colors hover:border-[#cbb79c]/40 focus:border-[#cbb79c] focus:outline-none focus:ring-2 focus:ring-[#cbb79c]/20";
+  "mt-3 block w-full rounded-md border border-white/15 bg-[#15120f] px-4 py-3.5 text-base text-white placeholder:text-[#c0b4a3]/60 transition-colors hover:border-[#cbb79c]/40 focus:border-[#cbb79c] focus:outline-none focus:ring-2 focus:ring-[#cbb79c]/20";
 
 export default function RequestRecordPage() {
   const [name, setName] = useState("");
