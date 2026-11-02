@@ -99,6 +99,23 @@ export function database(stock = 1) {
           .filter((o) => JSON.parse(o.details).reference === args[0])
           .map((o) => structuredClone(o)),
       ];
+    if (sql.startsWith("SELECT * FROM stock WHERE id"))
+      return [
+        [
+          {
+            id: 1,
+            title: "Test",
+            artist: "Artist",
+            price: "40.00",
+            stock: state.stock,
+            tags: ["recommended"],
+          },
+        ],
+      ];
+    if (sql === "UPDATE stock SET stock = ? WHERE id = ?") {
+      state.stock = args[0];
+      return [{ affectedRows: 1 }];
+    }
     if (sql.startsWith("SELECT id,title"))
       return [
         [

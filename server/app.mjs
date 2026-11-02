@@ -1,6 +1,6 @@
 import { installAdminAuth } from "./admin-auth.mjs";
 import { adminOrderRoutes } from "./admin-orders.mjs";
-import { availableStock, checkoutRoutes } from "./checkout.mjs";
+import { availableStock, checkoutRoutes, transaction } from "./checkout.mjs";
 import express from "express";
 import cors from "cors";
 import { fileURLToPath } from "node:url";
@@ -113,6 +113,41 @@ function readId(value) {
   return Number(value);
 }
 
+function stockNumber(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= 4294967295;
+}
+async function guardStock(db, id, expectedStock, nextStock) {
+  const [rows] = await db.execute(
+    "SELECT * FROM stock WHERE id = ? FOR UPDATE",
+    [id],
+  );
+  if (!rows.length) {
+    const error = new Error("Product not found.");
+    error.status = 404;
+    throw error;
+  }
+  const product = rows[0];
+  if (Number(product.stock) !== expectedStock) {
+    const error = new Error(
+      `Stock changed from ${expectedStock} to ${product.stock}. Refresh the record before saving so paid orders are not overwritten.`,
+    );
+    error.status = 409;
+    throw error;
+  }
+  const [held] = await db.execute(
+    "SELECT COALESCE(SUM(quantity),0) AS held FROM checkout_reservations WHERE product_id = ? AND (state = 'reported' OR (state = 'active' AND expires_at > NOW(3)))",
+    [id],
+  );
+  if (nextStock < Number(held[0].held)) {
+    const error = new Error(
+      `There are ${held[0].held} reserved copies. Review or cancel their orders before reducing stock below that number.`,
+    );
+    error.status = 409;
+    throw error;
+  }
+  return product;
+}
+
 export function createApp(pool, origins, options = {}) {
   const app = express();
   app.disable("x-powered-by");
@@ -196,6 +231,38 @@ export function createApp(pool, origins, options = {}) {
     res.status(201).json(productForJson({ id: result.insertId, ...product }));
   });
 
+  app.post("/api/admin/stock/:id", requireAdmin, async (req, res, next) => {
+    const id = readId(req.params.id);
+    if (
+      id === null ||
+      !stockNumber(req.body?.stock) ||
+      !stockNumber(req.body?.expectedStock)
+    )
+      return res
+        .status(400)
+        .json({
+          error: "Enter a valid stock quantity and original stock count.",
+        });
+    try {
+      const saved = await transaction(pool, async (db) => {
+        const product = await guardStock(
+          db,
+          id,
+          req.body.expectedStock,
+          req.body.stock,
+        );
+        await db.execute("UPDATE stock SET stock = ? WHERE id = ?", [
+          req.body.stock,
+          id,
+        ]);
+        return productForJson({ ...product, stock: req.body.stock });
+      });
+      res.json(saved);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.put("/api/stock/:id", requireAdmin, async (req, res) => {
     const id = readId(req.params.id);
     if (id === null)
@@ -206,26 +273,46 @@ export function createApp(pool, origins, options = {}) {
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
-    const updateColumns = columns.filter(
-      (column) => column !== "tags" || product.tags !== undefined,
-    );
-    const fields = updateColumns
-      .map((column) => `\`${column}\` = ?`)
-      .join(", ");
-    const [result] = await pool.execute(
-      `UPDATE stock SET ${fields} WHERE id = ?`,
-      [...updateColumns.map((column) => product[column]), id],
-    );
-    // MySQL reports matched rows with FOUND_ROWS (mysql2's default), including
-    // an unchanged update, so saving the same values remains successful.
-    if (!result.affectedRows)
-      return res.status(404).json({ error: "Product not found." });
-    const [savedRows] = await pool.execute("SELECT * FROM stock WHERE id = ?", [
-      id,
-    ]);
-    if (!savedRows.length)
-      return res.status(404).json({ error: "Product not found." });
-    res.json(productForJson(savedRows[0]));
+    if (
+      req.body.expectedStock !== undefined &&
+      !stockNumber(req.body.expectedStock)
+    )
+      return res.status(400).json({ error: "Invalid original stock count." });
+    const save = async (db) => {
+      if (req.body.expectedStock !== undefined)
+        await guardStock(db, id, req.body.expectedStock, product.stock);
+      const updateColumns = columns.filter(
+        (column) => column !== "tags" || product.tags !== undefined,
+      );
+      const fields = updateColumns
+        .map((column) => `\`${column}\` = ?`)
+        .join(", ");
+      const [result] = await db.execute(
+        `UPDATE stock SET ${fields} WHERE id = ?`,
+        [...updateColumns.map((column) => product[column]), id],
+      );
+      // MySQL reports matched rows with FOUND_ROWS (mysql2's default), including
+      // an unchanged update, so saving the same values remains successful.
+      if (!result.affectedRows) {
+        const error = new Error("Product not found.");
+        error.status = 404;
+        throw error;
+      }
+      const [savedRows] = await db.execute("SELECT * FROM stock WHERE id = ?", [
+        id,
+      ]);
+      if (!savedRows.length) {
+        const error = new Error("Product not found.");
+        error.status = 404;
+        throw error;
+      }
+      return productForJson(savedRows[0]);
+    };
+    const saved =
+      req.body.expectedStock === undefined
+        ? await save(pool)
+        : await transaction(pool, save);
+    res.json(saved);
   });
 
   app.delete("/api/stock/:id", requireAdmin, async (req, res) => {
@@ -240,6 +327,8 @@ export function createApp(pool, origins, options = {}) {
 
   app.use((req, res) => res.status(404).json({ error: "Route not found." }));
   app.use((error, req, res, next) => {
+    if ([400, 404, 409].includes(error.status))
+      return res.status(error.status).json({ error: error.message });
     if (error.type === "entity.parse.failed") {
       return res.status(400).json({ error: "Invalid JSON." });
     }

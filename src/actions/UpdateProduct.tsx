@@ -1,307 +1,364 @@
-import RecordTags from "../admin/RecordTags";
-import { readRecordTags } from "../admin/recordTagOptions";
-import { adminFetch } from "../admin/adminApi";
-import { useEffect, useState } from "react";
+import useUnsavedChanges from "../admin/useUnsavedChanges";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Product } from "../scripts/picksOfTheWeek";
-import { ActionSearchBar } from "../searchBar";
-import { Trash } from "lucide-react";
-
-function UpdateProductSection() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [chosenProduct, setChosenProduct] = useState<Product | null>(null);
-  const [editForm, setEditForm] = useState<Product | null>(null);
-  const [message, setMessage] = useState("");
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    if (!editForm) return;
-
-    setEditForm({
-      ...editForm,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSave = async () => {
-    if (!editForm) return;
-
-    try {
-      const res = await adminFetch(
-        `http://localhost:3001/api/stock/${editForm.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(editForm),
-        },
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setMessage("✅ Updated successfully");
-
-        // also update local list instantly
-        setProducts((prev) =>
-          prev.map((p) => (p.id === editForm.id ? data : p)),
-        );
-
-        setChosenProduct(null);
-        setEditForm(null);
-      } else {
-        setMessage("❌ " + data.error);
-      }
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Server error");
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!editForm) return;
-
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this product?",
-    );
-
-    if (!confirmDelete) return;
-
-    try {
-      const res = await adminFetch(
-        `http://localhost:3001/api/stock/${editForm.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setMessage("🗑️ Product deleted");
-
-        // remove from local list instantly
-        setProducts((prev) => prev.filter((p) => p.id !== editForm.id));
-
-        setChosenProduct(null);
-        setEditForm(null);
-      } else {
-        setMessage("❌ " + data.error);
-      }
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Server error");
-    }
-  };
-
+import { adminJson } from "../admin/adminApi";
+import ProductFields from "../admin/ProductFields";
+import {
+  adminButton,
+  adminField,
+  adminPanel,
+  productForm,
+  productPayload,
+  type ProductForm,
+} from "../admin/productForm";
+import { formatPrice, getPriceCents } from "../cart/cartStorage";
+export default function UpdateProductSection() {
+  const [result, setResult] = useState<{
+      attempt: number;
+      products?: Product[];
+      error?: string;
+    }>({ attempt: -1 }),
+    [attempt, setAttempt] = useState(0),
+    [query, setQuery] = useState(""),
+    [limit, setLimit] = useState(30),
+    [selected, setSelected] = useState<Product | null>(null),
+    [form, setForm] = useState<ProductForm | null>(null),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [failed, setFailed] = useState(false);
   useEffect(() => {
-    adminFetch("http://localhost:3001/api/stock?inventory=on-hand")
-      .then((res) => res.json())
-      .then((data: Product[]) => {
-        const sorted = data.sort((a, b) => b.id - a.id); // newest first
-        setProducts(sorted);
-      })
-      .catch((err) =>
-        setMessage(
-          err instanceof Error ? err.message : "Unable to load records.",
-        ),
+    const controller = new AbortController();
+    adminJson<Product[]>("/api/stock?inventory=on-hand", {
+      signal: controller.signal,
+    })
+      .then((products) => setResult({ attempt, products }))
+      .catch((err) => {
+        if (!controller.signal.aborted)
+          setResult({ attempt, error: err.message });
+      });
+    return () => controller.abort();
+  }, [attempt]);
+  useUnsavedChanges(
+    Boolean(
+      form &&
+      selected &&
+      JSON.stringify(form) !== JSON.stringify(productForm(selected)),
+    ),
+  );
+  const products = result.products || [];
+  const matches = products.filter((p) =>
+    `${p.title} ${p.artist} ${p.barcode || ""}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  function select(product: Product) {
+    setSelected(product);
+    setForm(productForm(product));
+    setMessage("");
+    setFailed(false);
+  }
+  function back() {
+    if (busy) return;
+    if (
+      form &&
+      selected &&
+      JSON.stringify(form) !== JSON.stringify(productForm(selected)) &&
+      !window.confirm("Discard your unsaved changes?")
+    )
+      return;
+    setSelected(null);
+    setForm(null);
+    setMessage("");
+  }
+  async function save(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!form || !selected || busy) return;
+    setBusy(true);
+    setMessage("");
+    setFailed(false);
+    try {
+      const saved = await adminJson<Product>(`/api/stock/${selected.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...productPayload(form),
+          expectedStock: Number(selected.stock),
+        }),
+      });
+      setSelected(saved);
+      setForm(productForm(saved));
+      setResult((current) => ({
+        ...current,
+        products: current.products?.map((p) => (p.id === saved.id ? saved : p)),
+      }));
+      setMessage("Changes saved.");
+    } catch (err) {
+      setFailed(true);
+      setMessage(
+        err instanceof Error ? err.message : "Unable to save this record.",
       );
-  }, []);
-
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reloadSelected() {
+    if (
+      !selected ||
+      busy ||
+      !window.confirm("Reload the latest record and discard unsaved edits?")
+    )
+      return;
+    setBusy(true);
+    try {
+      const saved = await adminJson<Product>(
+        `/api/stock/${selected.id}?inventory=on-hand`,
+      );
+      setSelected(saved);
+      setForm(productForm(saved));
+      setResult((current) => ({
+        ...current,
+        products: current.products?.map((product) =>
+          product.id === saved.id ? saved : product,
+        ),
+      }));
+      setFailed(false);
+      setMessage("Latest record loaded.");
+    } catch (err) {
+      setFailed(true);
+      setMessage(err instanceof Error ? err.message : "Unable to reload.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove() {
+    if (
+      !selected ||
+      busy ||
+      !window.confirm(
+        `Delete “${selected.title}”? This permanently removes the listing. Existing orders may still need it.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await adminJson(`/api/stock/${selected.id}`, { method: "DELETE" });
+      setResult((current) => ({
+        ...current,
+        products: current.products?.filter((p) => p.id !== selected.id),
+      }));
+      setSelected(null);
+      setForm(null);
+      setFailed(false);
+      setMessage("Listing deleted.");
+    } catch (err) {
+      setFailed(true);
+      setMessage(
+        err instanceof Error ? err.message : "Unable to delete this record.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center">
-        <p className="text-lg font-semibold mb-4">Edit Products</p>
-        {!chosenProduct && (
-          <ActionSearchBar
-            products={products}
-            setFilteredProducts={setFilteredProducts}
-          />
-        )}
-        {chosenProduct && (
-          <div
-            onClick={handleDelete}
-            className="cursor-pointer hover:text-red-500 transition text-gray-400"
-          >
-            <Trash size={16} />
-          </div>
-        )}
-      </div>
-
-      {!chosenProduct && message && (
-        <p role="status" className="mb-3 text-sm text-[#c0b4a3]">
-          {message}
+    <section aria-labelledby="edit-title">
+      <header className="mb-5">
+        <p className="mb-2 text-[10px] uppercase tracking-[.18em] text-[#cbb79c]">
+          Keep the crates in order
         </p>
-      )}
-
-      {/* LIST VIEW */}
-      {!chosenProduct ? (
-        <div className="overflow-y-auto flex-1 space-y-1">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => {
-                setChosenProduct(product);
-                setEditForm({ ...product, tags: readRecordTags(product.tags) });
-              }}
-              className="bg-black/40 p-1 rounded flex justify-between items-center hover:bg-white/10 cursor-pointer"
+        <h2 id="edit-title" className="font-marcellus text-2xl sm:text-3xl">
+          Edit records
+        </h2>
+      </header>
+      {selected && form ? (
+        <>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={back}
+              className={adminButton}
             >
-              <div className="flex gap-x-2 items-center">
-                <img src={product.cover_image} className="w-12" />
-                <div className="flex-col">
-                  <p className="text-sm">{product.title}</p>
-                  <p className="text-xs text-gray-400">{product.artist}</p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="text-sm">{product.medium}</p>
-                <p className="text-sm">{product.variant}</p>
-              </div>
+              ← All records
+            </button>
+            <span className="text-xs text-[#c0b4a3]">
+              Listing #{selected.id}
+            </span>
+          </div>
+          <div className="mb-5 flex min-w-0 items-center gap-3">
+            <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-[#28231d] text-[#cbb79c]">
+              {selected.cover_image ? (
+                <img
+                  src={selected.cover_image}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                "♪"
+              )}
             </div>
-          ))}
-        </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-[#c0b4a3]">
+                {selected.artist}
+              </p>
+              <h3 className="truncate font-marcellus text-lg">
+                {selected.title}
+              </h3>
+            </div>
+          </div>
+          <form onSubmit={save}>
+            <fieldset disabled={busy} className="min-w-0">
+              <ProductFields value={form} onChange={setForm} />
+            </fieldset>
+            <div className="sticky bottom-0 z-20 mt-5 rounded-t-xl border-t border-white/15 bg-[#15120f]/95 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl sm:rounded-xl sm:border">
+              <p
+                role={failed ? "alert" : "status"}
+                className={`mb-2 text-sm empty:hidden ${failed ? "text-[#f0b8a8]" : "text-[#cbb79c]"}`}
+              >
+                {message}
+              </p>
+              {failed && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={reloadSelected}
+                  className={`${adminButton} mb-3 w-full`}
+                >
+                  Reload latest record
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={busy}
+                className={`${adminButton} w-full bg-[#cbb79c] text-[#15120f]`}
+              >
+                {busy ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+          <details className="mt-6 rounded-xl border border-white/10 p-4">
+            <summary className="min-h-11 cursor-pointer text-sm text-[#c0b4a3]">
+              Remove this listing
+            </summary>
+            <p className="my-3 text-xs text-[#c0b4a3]">
+              Deleting a listing does not cancel existing orders.
+            </p>
+            <button
+              disabled={busy}
+              onClick={remove}
+              className={`${adminButton} text-[#f0b8a8]`}
+            >
+              Delete listing
+            </button>
+          </details>
+        </>
       ) : (
-        /* DETAIL VIEW */
-        <div className="flex flex-col gap-4 flex-1">
-          <button
-            onClick={() => {
-              setChosenProduct(null);
-              setEditForm(null);
-            }}
-            className="text-xs text-gray-400 hover:text-white w-fit cursor-pointer"
-          >
-            ← Back
-          </button>
-
-          {/* TOP IMAGE */}
-          <div className="flex gap-4">
-            <img
-              src={editForm?.cover_image}
-              className="w-32 h-32 object-cover rounded"
+        <>
+          <label className="mb-4 block text-sm text-[#c0b4a3]">
+            Find a record
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setLimit(30);
+              }}
+              className={adminField}
+              placeholder="Artist, album or barcode…"
             />
-
-            <div className="flex flex-col gap-2 w-full">
-              {/* TITLE */}
-              <input
-                name="title"
-                value={editForm?.title || ""}
-                onChange={handleChange}
-                className="bg-white text-black p-1 text-sm"
-                placeholder="Title"
-              />
-
-              {/* ARTIST */}
-              <input
-                name="artist"
-                value={editForm?.artist || ""}
-                onChange={handleChange}
-                className="bg-white text-black p-1 text-sm"
-                placeholder="Artist"
-              />
-
-              {/* PRICE */}
-              <input
-                name="price"
-                value={editForm?.price || ""}
-                onChange={handleChange}
-                className="bg-white text-black p-1 text-sm"
-                placeholder="Price"
-              />
+          </label>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs text-[#c0b4a3]">{matches.length} records</p>
+            <button
+              onClick={() => setAttempt((v) => v + 1)}
+              className={adminButton}
+            >
+              Refresh
+            </button>
+          </div>
+          {message && (
+            <p
+              role={failed ? "alert" : "status"}
+              className="mb-3 text-sm text-[#cbb79c]"
+            >
+              {message}
+            </p>
+          )}
+          {result.attempt !== attempt ? (
+            <p role="status" className="py-6 text-sm text-[#c0b4a3]">
+              Loading records…
+            </p>
+          ) : result.error ? (
+            <div role="alert" className={adminPanel}>
+              <p className="text-sm text-[#f0b8a8]">{result.error}</p>
+              <button
+                onClick={() => setAttempt((v) => v + 1)}
+                className={`${adminButton} mt-3`}
+              >
+                Try again
+              </button>
             </div>
-          </div>
-
-          {/* COVER IMAGE (FULL WIDTH ON TOP SECTION) */}
-          <input
-            name="cover_image"
-            value={editForm?.cover_image || ""}
-            onChange={handleChange}
-            className="bg-white text-black p-1 text-sm"
-            placeholder="Cover Image URL"
-          />
-
-          {/* GRID FIELDS */}
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              name="genre"
-              value={editForm?.genre || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Genre"
-            />
-
-            <input
-              name="medium"
-              value={editForm?.medium || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Medium"
-            />
-
-            <input
-              name="variant"
-              value={editForm?.variant || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Variant"
-            />
-
-            <input
-              name="released"
-              value={editForm?.released || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Released"
-            />
-
-            <input
-              name="barcode"
-              value={editForm?.barcode || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Barcode"
-            />
-
-            <input
-              name="stock"
-              value={editForm?.stock || ""}
-              onChange={handleChange}
-              className="bg-white text-black p-1 text-sm"
-              placeholder="Stock"
-            />
-          </div>
-
-          <RecordTags
-            value={editForm?.tags}
-            onChange={(tags) =>
-              setEditForm((current) =>
-                current ? { ...current, tags } : current,
-              )
-            }
-          />
-
-          {/* DESCRIPTION */}
-          <textarea
-            name="description"
-            value={editForm?.description || ""}
-            onChange={handleChange}
-            className="bg-white text-black p-2 text-sm min-h-[120px]"
-            placeholder="Description"
-          />
-
-          {/* SAVE */}
-          <button
-            onClick={handleSave}
-            className="bg-[#cbb79c] text-black px-4 py-2 rounded hover:opacity-80 cursor-pointer"
-          >
-            <p>Save Changes</p>
-          </button>
-
-          {message && <p className="text-xs text-gray-300 mt-2">{message}</p>}
-        </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {matches.slice(0, limit).map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => select(product)}
+                    className="flex min-h-20 w-full min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-[#211b16]/95 p-3 text-left hover:border-[#cbb79c]/50"
+                  >
+                    <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-[#28231d] text-[#cbb79c]">
+                      {product.cover_image ? (
+                        <img
+                          src={product.cover_image}
+                          alt=""
+                          loading="lazy"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        "♪"
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs text-[#c0b4a3]">
+                        {product.artist}
+                      </span>
+                      <span className="line-clamp-2 font-marcellus text-base">
+                        {product.title}
+                      </span>
+                      <span className="mt-1 block truncate text-[11px] text-[#c0b4a3]">
+                        {product.medium} · {product.stock} on hand
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm text-[#cbb79c]">
+                      {formatPrice(getPriceCents(product.price) || 0)}
+                      <span
+                        className="mt-1 block text-right"
+                        aria-hidden="true"
+                      >
+                        ↗
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {!matches.length && (
+                <p className={`${adminPanel} text-sm text-[#c0b4a3]`}>
+                  No matching records.
+                </p>
+              )}
+              {matches.length > limit && (
+                <button
+                  onClick={() => setLimit((v) => v + 30)}
+                  className={`${adminButton} mt-4 w-full`}
+                >
+                  Show more records
+                </button>
+              )}
+            </>
+          )}
+        </>
       )}
-    </div>
+    </section>
   );
 }
-
-export default UpdateProductSection;

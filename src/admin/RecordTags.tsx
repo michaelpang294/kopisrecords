@@ -19,7 +19,7 @@ export default function RecordTags({
         {recordTags.map((tag) => (
           <label
             key={tag.value}
-            className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-3 py-2 font-[Arial,sans-serif] text-xs ${selected.includes(tag.value) ? "border-[#cbb79c]/60 bg-[#cbb79c]/10 text-[#efe8dc]" : "border-white/15 text-[#c0b4a3]"}`}
+            className={`inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full border px-3 py-2 font-[Arial,sans-serif] text-xs ${selected.includes(tag.value) ? "border-[#cbb79c]/60 bg-[#cbb79c]/10 text-[#efe8dc]" : "border-white/15 text-[#c0b4a3]"}`}
           >
             <input
               type="checkbox"

@@ -1,4 +1,8 @@
-export const API = "http://localhost:3001";
+const configuredApi = import.meta.env?.VITE_API_URL;
+export const API =
+  typeof configuredApi === "string"
+    ? configuredApi.replace(/\/$/, "")
+    : "http://localhost:3001";
 export async function adminFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
@@ -13,7 +17,7 @@ export async function adminFetch(
   });
   if (!response.ok) {
     if (response.status === 401)
-      window.dispatchEvent(new Event("admin-session-ended"));
+      window.dispatchEvent(new window.Event("admin-session-ended"));
     const data = await response.json().catch(() => ({}));
     throw new Error(
       data.error || "The admin request failed. Please try again.",

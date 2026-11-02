@@ -1,3 +1,4 @@
+import { ClipboardList, Plus, Disc3, Package } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import Footer from "../footer";
@@ -8,10 +9,10 @@ import StockLevelsSection from "../actions/StockLevels";
 import OrdersSection from "../admin/OrdersSection";
 import { API, adminJson } from "../admin/adminApi";
 const links = [
-  { label: "Orders", to: "/admin/orders" },
-  { label: "Create listing", to: "/admin/create" },
-  { label: "Edit records", to: "/admin/edit" },
-  { label: "Stock levels", to: "/admin/stock" },
+  { label: "Orders", icon: ClipboardList, to: "/admin/orders" },
+  { label: "Add record", icon: Plus, to: "/admin/create" },
+  { label: "Edit records", icon: Disc3, to: "/admin/edit" },
+  { label: "Stock", icon: Package, to: "/admin/stock" },
 ];
 export default function AdminPage() {
   const { action } = useParams();
@@ -72,6 +73,12 @@ export default function AdminPage() {
     }
   }
   async function logout() {
+    if (
+      !window.dispatchEvent(
+        new window.Event("admin-before-leave", { cancelable: true }),
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     try {
@@ -86,7 +93,7 @@ export default function AdminPage() {
   return (
     <>
       <main
-        className="min-h-[calc(100svh-57px)] bg-[#15120f] bg-cover bg-center px-4 py-8 font-[Arial,sans-serif] text-[#efe8dc] sm:px-6 lg:px-10"
+        className="min-h-[calc(100svh-57px)] bg-[#15120f] bg-cover bg-center px-4 py-5 font-[Arial,sans-serif] text-[#efe8dc] sm:px-6 lg:px-10"
         style={{
           backgroundImage: `linear-gradient(#15120fe8,#15120ff2),url(${background})`,
         }}
@@ -136,12 +143,12 @@ export default function AdminPage() {
             </form>
           ) : (
             <>
-              <header className="mb-7 flex flex-wrap items-center justify-between gap-4">
+              <header className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <p className="mb-2 text-[10px] uppercase tracking-[.18em] text-[#cbb79c]">
                     Kopi’s Records · Administration
                   </p>
-                  <h1 className="font-marcellus text-3xl sm:text-4xl">
+                  <h1 className="font-marcellus text-2xl sm:text-4xl">
                     Behind the crates
                   </h1>
                 </div>
@@ -162,16 +169,17 @@ export default function AdminPage() {
               <div className="grid items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
                 <nav
                   aria-label="Admin navigation"
-                  className="flex flex-wrap gap-2 lg:sticky lg:top-24 lg:flex-col"
+                  className="sticky top-[57px] z-30 grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
                 >
                   {links.map((link) => (
                     <NavLink
                       key={link.to}
                       to={link.to}
                       className={({ isActive }) =>
-                        `inline-flex min-h-11 items-center rounded-md px-4 py-3 text-sm ${isActive || (link.to === "/admin/orders" && !action) ? "bg-[#cbb79c] text-[#15120f]" : "border border-white/10 bg-[#211b16] text-[#c0b4a3] hover:text-[#efe8dc]"}`
+                        `inline-flex min-h-14 flex-col gap-1 items-center justify-center rounded-lg px-1 py-3 text-center text-xs sm:text-sm lg:flex-row lg:gap-3 lg:justify-start lg:px-4 ${isActive || (link.to === "/admin/orders" && !action) ? "bg-[#cbb79c] text-[#15120f]" : "border border-white/10 bg-[#211b16] text-[#c0b4a3] hover:text-[#efe8dc]"}`
                       }
                     >
+                      <link.icon size={17} aria-hidden="true" />
                       {link.label}
                     </NavLink>
                   ))}

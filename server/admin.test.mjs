@@ -13,9 +13,9 @@ async function setup(t, options = {}) {
   await new Promise((r) => server.once("listening", r));
   t.after(() => new Promise((r) => server.close(r)));
   const base = `http://127.0.0.1:${server.address().port}`;
-  async function call(path, body, cookie = "", extra = {}) {
+  async function call(path, body, cookie = "", extra = {}, method) {
     const response = await fetch(base + path, {
-      method: body === undefined ? "GET" : "POST",
+      method: method || (body === undefined ? "GET" : "POST"),
       headers: {
         Origin: "http://localhost:5173",
         "X-Admin-Request": "1",
@@ -195,4 +195,38 @@ test("expired sessions cannot mutate stock; delivery follows dispatched then com
   assert.equal((await action("dispatched")).status, 200);
   assert.equal((await action("completed")).status, 200);
   assert.equal(pool.state.stock, 4);
+});
+test("mobile stock changes reject stale counts and held-copy reductions, preserving tags", async (t) => {
+  const { pool, call, login, checkout } = await setup(t);
+  const cookie = await login();
+  await checkout();
+  const update = (stock, expectedStock) =>
+    call("/api/admin/stock/1", { stock, expectedStock }, cookie);
+  assert.equal((await update(4, 3)).status, 409);
+  assert.equal(pool.state.stock, 5);
+  assert.equal((await update(0, 5)).status, 409);
+  assert.equal(pool.state.stock, 5);
+  const saved = await update(6, 5);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.value.stock, 6);
+  assert.deepEqual(saved.value.tags, ["recommended"]);
+  assert.equal((await update(7, 5)).status, 409);
+  assert.equal(pool.state.stock, 6);
+  assert.equal((await update(-1, 6)).status, 400);
+  const staleEdit = await call(
+    "/api/stock/1",
+    {
+      title: "Test",
+      artist: "Artist",
+      price: 40,
+      stock: 6,
+      medium: "Vinyl",
+      expectedStock: 5,
+    },
+    cookie,
+    {},
+    "PUT",
+  );
+  assert.equal(staleEdit.status, 409);
+  assert.equal(pool.state.stock, 6);
 });

@@ -39,9 +39,9 @@ type Order = {
 };
 type List = { orders: Order[]; total: number; page: number; pageSize: number };
 const field =
-  "min-h-11 rounded-md border border-white/15 bg-[#211b16] px-3 py-2 text-sm text-[#efe8dc] outline-none focus:border-[#cbb79c]";
+  "min-h-12 rounded-lg border border-white/15 bg-[#211b16] px-3 py-3 text-base text-[#efe8dc] outline-none focus:border-[#cbb79c]";
 const button =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-4 py-2 text-sm disabled:opacity-50 hover:border-[#cbb79c]";
+  "inline-flex min-h-12 items-center justify-center rounded-md border border-white/15 px-4 py-2 text-sm disabled:opacity-50 hover:border-[#cbb79c]";
 const date = (value: string) =>
   new Date(value).toLocaleString("en-SG", {
     timeZone: "Asia/Singapore",
@@ -71,6 +71,14 @@ export default function OrdersSection() {
     [actionError, setActionError] = useState(""),
     [notice, setNotice] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
+  const detailPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected && window.matchMedia?.("(max-width: 1279px)").matches)
+      detailPanel.current?.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
+  }, [selected]);
   const listKey = JSON.stringify([status, query, page, version]),
     detailKey = JSON.stringify([selected, version]);
   useEffect(() => {
@@ -197,7 +205,7 @@ export default function OrdersSection() {
         </p>
       )}
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,.8fr)_minmax(0,1.4fr)]">
-        <div className="min-w-0">
+        <div className={`min-w-0 ${selected ? "hidden xl:block" : ""}`}>
           <p className="mb-3 text-xs text-[#c0b4a3]">
             {data
               ? `${data.total} orders · Page ${page} of ${Math.max(1, Math.ceil(data.total / 30))}`
@@ -263,7 +271,19 @@ export default function OrdersSection() {
             </div>
           )}
         </div>
-        <div className="min-w-0 rounded-lg border border-white/10 bg-[#211b16]/95 p-5 sm:p-6">
+        <div
+          ref={detailPanel}
+          className={`scroll-mt-40 min-w-0 rounded-xl border border-white/10 bg-[#211b16]/95 p-4 sm:p-6 ${selected ? "" : "hidden xl:block"}`}
+        >
+          {selected && (
+            <button
+              type="button"
+              onClick={() => setSelected("")}
+              className={`${button} mb-5 xl:hidden`}
+            >
+              ← All orders
+            </button>
+          )}
           {!selected ? (
             <p className="text-sm text-[#c0b4a3]">
               Select an order to review its payment, customer details and
@@ -437,7 +457,7 @@ export default function OrdersSection() {
           if (busy) e.preventDefault();
           else setPending("");
         }}
-        className="m-auto w-[calc(100%-32px)] max-w-md rounded-lg border border-white/20 bg-[#211b16] p-6 text-[#efe8dc] backdrop:bg-black/70"
+        className="m-auto w-[calc(100%_-_32px)] max-h-[calc(100dvh_-_32px)] max-w-md overflow-y-auto rounded-lg border border-white/20 bg-[#211b16] p-6 text-[#efe8dc] backdrop:bg-black/70"
       >
         <h3 className="font-marcellus text-2xl">
           {pending === "paid"
