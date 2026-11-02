@@ -39,8 +39,7 @@ export default function Footer() {
             </Link>
 
             <p className={`${type.small} mb-0 mt-4 max-w-[290px] text-[#c0b4a3]`}>
-              An independent record shop in Singapore. Records we love, ready for your
-              next rotation.
+              We hope that you find something you like in our crates. Thank you for your support!
             </p>
 
             <a
@@ -49,10 +48,6 @@ export default function Footer() {
             >
               kopisrecords@gmail.com
             </a>
-
-            <p className={`${type.eyebrow} mb-0 mt-5 text-[#cbb79c]`}>
-              Always listening. Always digging.
-            </p>
           </div>
 
           <nav aria-labelledby="footer-shop-title">
@@ -106,7 +101,7 @@ export default function Footer() {
               Stay in rotation
             </h3>
             <p className={`${type.small} mb-3 mt-0 max-w-[270px] text-[#c0b4a3]`}>
-              Fresh arrivals, shop updates, and what’s on our turntable.
+              New arrivals weekly, preorders for new releases, and updates here and there.
             </p>
             <ul className="m-0 flex list-none flex-wrap gap-x-6 p-0 lg:block">
               {socials.map((social) => (

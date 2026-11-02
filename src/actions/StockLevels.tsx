@@ -9,7 +9,7 @@ function StockLevelsSection() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/stock")
+    fetch("http://localhost:3001/api/stock?inventory=on-hand")
       .then(res => res.json())
       .then((data: Product[]) => {
         const sorted = data.sort((a, b) => b.id - a.id);

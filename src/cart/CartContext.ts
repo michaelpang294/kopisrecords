@@ -6,10 +6,14 @@ export type CartContextValue = {
   items: CartItem[];
   itemCount: number;
   storageMessage: string;
-  addItem: (product: Pick<Product, "id" | "stock" | "price">, quantity: number) => CartResult;
+  addItem: (
+    product: Pick<Product, "id" | "stock" | "price">,
+    quantity: number,
+  ) => CartResult;
   updateQuantity: (id: number, quantity: number, stock: number) => CartResult;
   removeItem: (id: number) => void;
   clearCart: () => void;
+  completeOrder: (orderId: string, orderedItems: CartItem[]) => void;
   quantityFor: (id: number) => number;
 };
 

@@ -4,10 +4,17 @@ export type CartItem = { id: number; quantity: number };
 export type CartResult = { ok: boolean; message: string };
 
 /** Read the original [{ id, quantity }] format, including older saved carts. */
-export function parseCart(raw: string | null): { items: CartItem[]; invalid: boolean } {
+export function parseCart(raw: string | null): {
+  items: CartItem[];
+  invalid: boolean;
+} {
   if (raw === null) return { items: [], invalid: false };
   try {
-    const value: unknown = JSON.parse(raw);
+    const stored: unknown = JSON.parse(raw);
+    const value: unknown =
+      stored && typeof stored === "object" && "items" in stored
+        ? stored.items
+        : stored;
     if (!Array.isArray(value)) return { items: [], invalid: true };
     const merged = new Map<number, number>();
     let invalid = false;
@@ -51,9 +58,30 @@ export function getPriceCents(value: unknown): number | null {
   if (typeof value === "string" && !value.trim()) return null;
   const amount = Number(value);
   const cents = Math.round(amount * 100);
-  return Number.isFinite(amount) && amount >= 0 && Number.isSafeInteger(cents) ? cents : null;
+  return Number.isFinite(amount) && amount >= 0 && Number.isSafeInteger(cents)
+    ? cents
+    : null;
 }
 
 export function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Completion markers are saved with the cart so reloads cannot subtract an order twice. */
+export function completedOrders(raw: string | null): string[] {
+  try {
+    const value: unknown = JSON.parse(raw || "null");
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("completedOrders" in value) ||
+      !Array.isArray(value.completedOrders)
+    )
+      return [];
+    return value.completedOrders
+      .filter((id): id is string => typeof id === "string")
+      .slice(-100);
+  } catch {
+    return [];
+  }
 }

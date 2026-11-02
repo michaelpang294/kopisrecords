@@ -489,10 +489,10 @@ export default function CartPage() {
                 reserve stock.
               </p>
               <Link
-                to="/shop"
+                to="/checkout"
                 className={`${type.ui} ${focus} mt-6 flex min-h-11 items-center justify-center gap-3 rounded-md bg-[#cbb79c] px-4 py-3 text-[#15120f] hover:bg-[#dfcdb3]`}
               >
-                Continue shopping
+                Checkout
                 <ArrowRight size={16} aria-hidden="true" />
               </Link>
               <button

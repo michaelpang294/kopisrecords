@@ -1,3 +1,4 @@
+import { availableStock, checkoutRoutes } from './checkout.mjs';
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'node:url';
@@ -79,6 +80,8 @@ export function createApp(pool, origins) {
   const coversPath = fileURLToPath(new URL('./covers/', import.meta.url));
   app.use('/covers', express.static(coversPath));
 
+  checkoutRoutes(app, pool);
+
   app.get('/api/health', async (req, res) => {
     await pool.execute('SELECT 1 AS ok');
     res.json({ status: 'ok', database: 'connected' });
@@ -86,6 +89,7 @@ export function createApp(pool, origins) {
 
   app.get('/api/stock', async (req, res) => {
     const [rows] = await pool.execute('SELECT * FROM stock ORDER BY id DESC');
+    if (req.query.inventory !== "on-hand") for (const row of rows) row.stock = await availableStock(pool,row);
     res.json(rows.map(productForJson));
   });
 
@@ -94,6 +98,7 @@ export function createApp(pool, origins) {
     if (id === null) return res.status(400).json({ error: 'Invalid product ID.' });
     const [rows] = await pool.execute('SELECT * FROM stock WHERE id = ?', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Product not found.' });
+    if (req.query.inventory !== "on-hand") rows[0].stock = await availableStock(pool,rows[0]);
     res.json(productForJson(rows[0]));
   });
 

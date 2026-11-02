@@ -9,6 +9,7 @@ test('HTTP contract matches the existing React shop and admin forms', async (t) 
   const pending = [];
   const pool = {
     async execute(sql, values = []) {
+      if(sql.startsWith('SELECT COALESCE(SUM(quantity)')) return [[{held:0}]];
       const expected = pending.shift();
       assert.ok(expected, `Unexpected database call: ${sql}`);
       assert.match(sql, expected.sql);

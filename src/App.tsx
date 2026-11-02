@@ -8,6 +8,8 @@ import RequestRecordPage from "./pages/RequestPage";
 import AdminPage from "./pages/AdminPage";
 import CartPage from "./pages/CartPage";
 
+import CheckoutPage from "./pages/CheckoutPage";
+
 export default function App() {
   const { pathname } = useLocation();
 
@@ -34,6 +36,7 @@ export default function App() {
 
         <Route path="/request" element={<RequestRecordPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
 
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/:action" element={<AdminPage />} />

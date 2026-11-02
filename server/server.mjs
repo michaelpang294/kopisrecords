@@ -1,3 +1,4 @@
+import { ensureOrders, expireOrders } from './checkout.mjs';
 import mysql from 'mysql2/promise';
 import { createApp } from './app.mjs';
 
@@ -22,8 +23,10 @@ const pool = mysql.createPool({
 try {
   // Check the actual schema too, so a missing import is caught at startup.
   await pool.execute('SELECT id FROM stock LIMIT 1');
+  await ensureOrders(pool);
+  await expireOrders(pool);
 } catch (error) {
-  console.error(`Cannot connect to the local database (${error.code ?? error.message}).`);
+  console.error(`Database startup failed (${error.code ?? error.message}): ${error.sqlMessage ?? error.message}`);
   console.error('Check that MySQL is running, import database/01-setup.sql, and verify .env.');
   await pool.end();
   process.exit(1);
@@ -33,6 +36,8 @@ const origins = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://1
   .split(',').map((origin) => origin.trim()).filter(Boolean);
 const port = Number(process.env.API_PORT || 3001);
 const app = createApp(pool, origins);
+const expiryTimer = setInterval(() => expireOrders(pool).catch(error => console.error('Order expiry update failed:', error.code ?? error.message)), 30000);
+expiryTimer.unref();
 // Local testing only: bind to loopback. The frontend still calls localhost:3001.
 const server = app.listen(port, '127.0.0.1', () => {
   console.log(`Kopi's Records API: http://localhost:${port}/api/stock`);

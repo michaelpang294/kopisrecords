@@ -150,7 +150,7 @@ export default function RequestRecordPage() {
                     autoComplete="name"
                     required
                     maxLength={100}
-                    placeholder="What should we call you?"
+                    placeholder="How can we address you?"
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     className={inputClass}
