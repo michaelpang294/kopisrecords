@@ -1,3 +1,4 @@
+import { queueOrderEmails } from "./order-emails.mjs";
 import { grantRecovery } from "./order-access.mjs";
 import QRCode from "qrcode";
 import { createHash } from "node:crypto";
@@ -57,7 +58,7 @@ export async function ensureOrders(pool) {
     `CREATE TABLE IF NOT EXISTS checkout_order_recovery (token_hash CHAR(64) PRIMARY KEY,order_id CHAR(36) NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX(order_id)) ENGINE=InnoDB`,
   );
 }
-export function checkoutRoutes(app, pool) {
+export function checkoutRoutes(app, pool, emails) {
   const attempts = new Map();
   app.post("/api/checkout", async (req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -102,12 +103,38 @@ export function checkoutRoutes(app, pool) {
       }
       const text = (key, max) => {
         const v = b[key];
-        if (typeof v !== "string" || !v.trim() || v.trim().length > max)
+        if (
+          typeof v !== "string" ||
+          !v.trim() ||
+          v.trim().length > max ||
+          (key === "address"
+            ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/
+            : /[\u0000-\u001f\u007f]/
+          ).test(v)
+        )
           fail(`Please enter a valid ${key}.`);
         return v.trim();
       };
-      const name = text("name", 120),
-        contact = text("contact", 120);
+      const name = text("name", 120);
+      const email = text("email", 254).toLowerCase();
+      if (
+        !/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+          email,
+        )
+      )
+        fail("Please enter a valid email address.");
+      const phone = text("phone", 40);
+      if (
+        !/^\+?[0-9 ()-]+$/.test(phone) ||
+        !/^[0-9]{8,15}$/.test(phone.replace(/\D/g, ""))
+      )
+        fail("Please enter a valid contact number (8–15 digits).");
+      const username = text("telegram", 64).replace(/^@/, "");
+      if (!/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(username))
+        fail("Please enter your Telegram username, e.g. @yourusername.");
+      const telegram = "@" + username;
+      const contact = phone; // Preserve the legacy admin/search field.
+
       if (!["collection", "delivery"].includes(b.fulfilment))
         fail("Choose collection or delivery.");
       const address = b.fulfilment === "delivery" ? text("address", 500) : "";
@@ -120,6 +147,9 @@ export function checkoutRoutes(app, pool) {
             items: b.items,
             name,
             contact,
+            email,
+            phone,
+            telegram,
             fulfilment: b.fulfilment,
             address,
             postal,
@@ -189,6 +219,9 @@ export function checkoutRoutes(app, pool) {
           total,
           name,
           contact,
+          email,
+          phone,
+          telegram,
           fulfilment: b.fulfilment,
           address,
           postal,
@@ -261,7 +294,8 @@ export function checkoutRoutes(app, pool) {
           throw e;
         }
         const current = await orderResponse(db, rows[0]);
-        if (current.status === "payment_reported") return current;
+        if (["payment_reported", "paid"].includes(current.status))
+          return current;
         if (current.status !== "awaiting_payment_confirmation") {
           const e = new Error(
             "This hold is no longer active. If you paid, contact us with your reference. Do not pay again.",
@@ -277,8 +311,10 @@ export function checkoutRoutes(app, pool) {
           "UPDATE checkout_orders SET status = 'payment_reported' WHERE id = ?",
           [req.params.id],
         );
+        await queueOrderEmails(db, req.params.id, "reported");
         return { ...current, status: "payment_reported", qr: null };
       });
+      emails?.kick();
       res.json(result);
     } catch (e) {
       if (e.status) return res.status(e.status).json({ error: e.message });
@@ -326,7 +362,16 @@ export async function orderResponse(db, row) {
       [row.id],
     );
   }
-  const { name, contact, address, postal, ...publicOrder } = order;
+  const {
+    name,
+    contact,
+    email,
+    phone,
+    telegram,
+    address,
+    postal,
+    ...publicOrder
+  } = order;
   return {
     ...publicOrder,
     status,
@@ -397,7 +442,8 @@ export async function manageOrder(pool, action, reference) {
         "INSERT INTO checkout_order_events (order_id,action) VALUES (?,?)",
         [row.id, "paid"],
       );
-      return `Marked ${details.reference} paid and deducted stock once.`;
+      await queueOrderEmails(db, row.id, "confirmed");
+      return `Marked ${details.reference} paid and deducted stock once. Confirmation email queued.`;
     }
     if (row.status === "paid")
       throw Error(

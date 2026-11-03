@@ -1,4 +1,5 @@
 import { expireOrders, manageOrder, transaction } from "./checkout.mjs";
+import { queueOrderEmails } from "./order-emails.mjs";
 const statuses = [
   "awaiting_payment_confirmation",
   "payment_reported",
@@ -23,7 +24,7 @@ function serialize(row) {
     updatedAt: row.updated_at,
   };
 }
-export function adminOrderRoutes(app, pool, requireAdmin) {
+export function adminOrderRoutes(app, pool, requireAdmin, orderEmails) {
   app.use("/api/admin/orders", requireAdmin);
   app.get("/api/admin/orders", async (req, res, next) => {
     try {
@@ -45,8 +46,8 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
       }
       if (q) {
         where +=
-          " AND (JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.reference')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.contact')) LIKE ?)";
-        args.push(...Array(3).fill("%" + q + "%"));
+          " AND (JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.reference')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.contact')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.telegram')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.collectionNumber')) LIKE ?)";
+        args.push(...Array(6).fill("%" + q + "%"));
       }
       const [count] = await pool.execute(
         "SELECT COUNT(*) AS total FROM checkout_orders o LEFT JOIN checkout_fulfilment f ON f.order_id=o.id" +
@@ -85,10 +86,25 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
         "SELECT action,created_at FROM checkout_order_events WHERE order_id=? ORDER BY id DESC",
         [req.params.id],
       );
-      res.json({ ...serialize(rows[0]), holds, events });
+      const [emails] = await pool.execute(
+        "SELECT kind,status,attempts,last_error,sent_at FROM checkout_emails WHERE order_id = ? ORDER BY created_at,kind",
+        [req.params.id],
+      );
+      res.json({ ...serialize(rows[0]), holds, events, emails });
     } catch (e) {
       next(e);
     }
+  });
+  app.post("/api/admin/orders/:id/emails/retry", async (req, res) => {
+    await pool.execute(
+      "UPDATE checkout_emails SET status = 'pending',attempts = 0,next_attempt_at = NOW(3) WHERE order_id = ? AND status = 'failed'",
+      [req.params.id],
+    );
+    orderEmails?.kick();
+    res.json({
+      message:
+        "Failed emails queued for retry. Payment and stock are unchanged.",
+    });
   });
   app.post("/api/admin/orders/:id/action", async (req, res, next) => {
     try {
@@ -108,11 +124,19 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
           .status(400)
           .json({ error: "Confirm this order action first." });
       if (action === "paid" && req.body.paymentVerified !== true)
-        return res
-          .status(400)
-          .json({
-            error: "Check your bank receipt before confirming payment.",
-          });
+        return res.status(400).json({
+          error: "Check your bank receipt before confirming payment.",
+        });
+      const collectionNumber = req.body.collectionNumber;
+      if (
+        action === "ready_for_collection" &&
+        (!Number.isSafeInteger(collectionNumber) ||
+          collectionNumber < 1 ||
+          collectionNumber > 999999)
+      )
+        return res.status(400).json({
+          error: "Enter a collection / bag number from 1 to 999999.",
+        });
       if (action === "paid" || action === "cancel") {
         const [rows] = await pool.execute(
           "SELECT details FROM checkout_orders WHERE id=?",
@@ -125,6 +149,7 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
             ? JSON.parse(rows[0].details)
             : rows[0].details;
         const message = await manageOrder(pool, action, details.reference);
+        if (action === "paid") orderEmails?.kick();
         return res.json({ message });
       }
       const message = await transaction(pool, async (db) => {
@@ -136,7 +161,16 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
           order = serialize(row);
         if (row.payment_status !== "paid")
           throw Error("Verify payment before arranging fulfilment.");
-        if (row.status === action) return "Order already updated.";
+        if (row.status === action) {
+          if (
+            action === "ready_for_collection" &&
+            order.collectionNumber !== collectionNumber
+          )
+            throw Error(
+              "This order already has a collection number. Refresh and check the saved bag number before proceeding.",
+            );
+          return "Order already updated. No extra email queued.";
+        }
         const allowed =
           (action === "ready_for_collection" &&
             order.fulfilment === "collection" &&
@@ -150,6 +184,26 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
           throw Error(
             "That status change is not allowed for this order. Refresh and review its fulfilment method.",
           );
+        if (action === "ready_for_collection") {
+          // The shared reservation lock serializes assignments across admins.
+          // Completed orders retain their number, but it can then be reused.
+          const [used] = await db.execute(
+            "SELECT o.id FROM checkout_orders o INNER JOIN checkout_fulfilment f ON f.order_id=o.id WHERE o.id<>? AND o.status='paid' AND f.status='ready_for_collection' AND JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.collectionNumber')) = ? LIMIT 1",
+            [req.params.id, String(collectionNumber)],
+          );
+          if (used.length)
+            throw Error(
+              "That bag number is already in use by an order awaiting collection. Choose another number.",
+            );
+          const details =
+            typeof row.details === "string"
+              ? JSON.parse(row.details)
+              : row.details;
+          await db.execute(
+            "UPDATE checkout_orders SET details = ? WHERE id = ?",
+            [JSON.stringify({ ...details, collectionNumber }), req.params.id],
+          );
+        }
         await db.execute(
           "INSERT INTO checkout_fulfilment (order_id,status) VALUES (?,?) ON DUPLICATE KEY UPDATE status=VALUES(status),updated_at=CURRENT_TIMESTAMP",
           [req.params.id, action],
@@ -158,8 +212,16 @@ export function adminOrderRoutes(app, pool, requireAdmin) {
           "INSERT INTO checkout_order_events (order_id,action) VALUES (?,?)",
           [req.params.id, action],
         );
-        return "Order updated.";
+        if (["ready_for_collection", "dispatched", "completed"].includes(action))
+          await queueOrderEmails(db, req.params.id, action);
+        return action === "ready_for_collection"
+          ? `Ready for collection · bag #${collectionNumber}. Customer email queued.`
+          : action === "completed"
+            ? "Order completed. Customer thank-you email queued."
+            : "Dispatched. Customer delivery email queued.";
       });
+      if (["ready_for_collection", "dispatched", "completed"].includes(action))
+        orderEmails?.kick();
       res.json({ message });
     } catch (e) {
       if (!e.code) return res.status(409).json({ error: e.message });

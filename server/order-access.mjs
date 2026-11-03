@@ -1,3 +1,4 @@
+import { queueOrderEmails } from "./order-emails.mjs";
 import { createHash, randomBytes } from "node:crypto";
 const tokenPattern = /^[a-f0-9]{64}$/;
 const hash = (token) => createHash("sha256").update(token).digest("hex");
@@ -33,7 +34,7 @@ export async function grantRecovery(
 export function recoveryRoutes(
   app,
   pool,
-  { transaction, orderResponse, requireAdmin },
+  { transaction, orderResponse, requireAdmin, orderEmails },
 ) {
   const reads = new Map();
   const limitReads = (req, res, next) => {
@@ -137,8 +138,10 @@ export function recoveryRoutes(
           "UPDATE checkout_orders SET status = 'payment_reported' WHERE id = ?",
           [row.id],
         );
+        await queueOrderEmails(db, row.id, "reported");
         return { ...current, status: "payment_reported", qr: null };
       });
+      orderEmails?.kick();
       res.json(result);
     } catch (e) {
       failure(res, next, e);

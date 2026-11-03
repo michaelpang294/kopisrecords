@@ -195,7 +195,9 @@ export default function CheckoutPage() {
       items,
       fulfilment: method,
       name: String(data.get("name") || ""),
-      contact: String(data.get("contact") || ""),
+      email: String(data.get("email") || ""),
+      phone: String(data.get("phone") || ""),
+      telegram: String(data.get("telegram") || ""),
       address: String(data.get("address") || ""),
       postal: String(data.get("postal") || ""),
     };
@@ -303,7 +305,7 @@ export default function CheckoutPage() {
               <p className="mt-4 text-sm leading-relaxed text-[#c0b4a3]">
                 {order.status === "paid"
                   ? "Your payment has been confirmed."
-                  : "We’ve received your payment update and will check receipt."}{" "}
+                  : "We’ve received your payment update. Please give us 1–2 hours to check the transfer manually."}{" "}
                 We’ll contact you using the phone number or Telegram you
                 provided to arrange collection or delivery. You don’t need to
                 pay again.
@@ -329,7 +331,9 @@ export default function CheckoutPage() {
                 <strong>{formatPrice(order.total)}</strong>
               </p>
               <p className="mt-4 text-xs text-[#c0b4a3]">
-                Keep a screenshot of this reference for your records.
+                Payment updates and your private order link will be emailed to
+                you. Keep a screenshot of this reference too, and check your
+                spam folder if an email is missing.
               </p>
               {storageMessage && (
                 <p role="status" className="mt-4 text-xs text-[#c0b4a3]">
@@ -455,7 +459,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between">
                     <dt>
-                      {order.delivery ? "Delivery · 1–2 days" : "Collection"}
+                      {order.delivery ? "Delivery · 2–3 days after dispatch" : "Collection"}
                     </dt>
                     <dd>
                       {order.delivery ? formatPrice(order.delivery) : "Free"}
@@ -530,15 +534,50 @@ export default function CheckoutPage() {
                   />
                 </label>
                 <label className="text-sm">
-                  Phone number / Telegram
+                  Email address
                   <input
-                    name="contact"
+                    name="email"
+                    type="email"
                     required
-                    maxLength={120}
-                    placeholder="+65 9123 4567 or @username"
+                    autoComplete="email"
+                    maxLength={254}
+                    placeholder="you@example.com"
                     className={input}
                   />
                 </label>
+                <label className="text-sm">
+                  Telegram username
+                  <input
+                    name="telegram"
+                    type="text"
+                    required
+                    maxLength={33}
+                    pattern="@?[A-Za-z][A-Za-z0-9_]{4,31}"
+                    placeholder="@yourusername"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={input}
+                  />
+                </label>
+                <label className="text-sm">
+                  Contact number
+                  <input
+                    name="phone"
+                    type="tel"
+                    required
+                    autoComplete="tel"
+                    inputMode="tel"
+                    minLength={8}
+                    maxLength={40}
+                    placeholder="+65 9123 4567"
+                    className={input}
+                  />
+                </label>
+                <p className="mb-5 text-xs leading-relaxed text-[#c0b4a3]">
+                  All three are required. We’ll email your payment updates and
+                  contact you on Telegram or by phone about collection or
+                  delivery.
+                </p>
                 <fieldset>
                   <legend className="mb-3 font-marcellus text-xl">
                     Collection or delivery?
@@ -553,7 +592,7 @@ export default function CheckoutPage() {
                     {
                       id: "delivery",
                       title: "Delivery · $4.50",
-                      detail: "1–2 days · Singapore",
+                      detail: "2–3 days after dispatch · Singapore",
                     },
                   ].map((o) => (
                     <label

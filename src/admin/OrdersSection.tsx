@@ -24,6 +24,17 @@ type Order = {
   reference: string;
   name: string;
   contact: string;
+  email?: string;
+  phone?: string;
+  telegram?: string;
+  collectionNumber?: number;
+  emails?: {
+    kind: string;
+    status: string;
+    attempts: number;
+    last_error?: string;
+    sent_at?: string;
+  }[];
   address: string;
   postal: string;
   fulfilment: string;
@@ -67,6 +78,7 @@ export default function OrdersSection() {
     error?: string;
   }>({ key: "" });
   const [pending, setPending] = useState(""),
+    [collectionNumber, setCollectionNumber] = useState(""),
     [verified, setVerified] = useState(false),
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState(""),
@@ -149,11 +161,17 @@ export default function OrdersSection() {
   }
   function choose(action: string) {
     setPending(action);
+    setCollectionNumber("");
     setVerified(false);
     setActionError("");
   }
+  const validCollectionNumber = /^[1-9][0-9]{0,5}$/.test(collectionNumber);
   async function confirm() {
     if (!order || busy || !verified) return;
+    if (pending === "ready_for_collection" && !validCollectionNumber) {
+      setActionError("Enter a collection / bag number from 1 to 999999.");
+      return;
+    }
     setBusy(true);
     setActionError("");
     try {
@@ -166,6 +184,9 @@ export default function OrdersSection() {
             action: pending,
             confirmed: true,
             paymentVerified: pending === "paid" && verified,
+            ...(pending === "ready_for_collection"
+              ? { collectionNumber: Number(collectionNumber) }
+              : {}),
           }),
         },
       );
@@ -176,6 +197,22 @@ export default function OrdersSection() {
       setActionError(
         err instanceof Error ? err.message : "Unable to update this order.",
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function retryEmails() {
+    if (!order || busy) return;
+    setBusy(true);
+    try {
+      const result = await adminJson<{ message: string }>(
+        `/api/admin/orders/${order.id}/emails/retry`,
+        { method: "POST" },
+      );
+      setNotice(result.message);
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Unable to retry emails.");
     } finally {
       setBusy(false);
     }
@@ -220,7 +257,7 @@ export default function OrdersSection() {
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Reference, name or contact"
+              placeholder="Reference, bag number, name, email or contact"
               maxLength={120}
               className={`${field} w-full min-w-0`}
             />
@@ -275,6 +312,11 @@ export default function OrdersSection() {
                 <span className="mt-3 inline-block rounded-full border border-[#cbb79c]/25 px-2 py-1 text-[11px] text-[#cbb79c]">
                   {labels[row.status] || row.status}
                 </span>
+                {row.collectionNumber && (
+                  <span className="mt-2 block text-sm text-[#efe8dc]">
+                    Bag #{row.collectionNumber}
+                  </span>
+                )}
                 <span className="mt-2 block text-[11px] text-[#c0b4a3]">
                   {date(row.createdAt)} SGT
                 </span>
@@ -337,6 +379,16 @@ export default function OrdersSection() {
               <p className="mt-2 text-xs text-[#c0b4a3]">
                 {date(order.createdAt)} SGT
               </p>
+              {order.collectionNumber && (
+                <div className="mt-5 rounded-lg border border-[#cbb79c]/40 bg-[#cbb79c]/10 p-4">
+                  <p className="text-xs uppercase tracking-wider text-[#c0b4a3]">
+                    Collection / bag number
+                  </p>
+                  <p className="mt-2 text-3xl text-[#efe8dc]">
+                    #{order.collectionNumber}
+                  </p>
+                </div>
+              )}
               <div className="my-5 grid gap-5 border-y border-white/10 py-5 sm:grid-cols-2">
                 <div>
                   <h4 className="mb-2 text-xs uppercase tracking-wider text-[#cbb79c]">
@@ -344,7 +396,13 @@ export default function OrdersSection() {
                   </h4>
                   <p className="text-sm">{order.name}</p>
                   <p className="mt-1 break-words text-sm text-[#c0b4a3]">
-                    {order.contact}
+                    Phone: {order.phone || order.contact || "Not provided"}
+                  </p>
+                  <p className="mt-1 break-words text-sm text-[#c0b4a3]">
+                    Telegram: {order.telegram || "Not provided"}
+                  </p>
+                  <p className="mt-1 break-all text-sm text-[#c0b4a3]">
+                    Email: {order.email || "Not provided (older order)"}
                   </p>
                 </div>
                 <div>
@@ -360,6 +418,63 @@ export default function OrdersSection() {
                   </p>
                 </div>
               </div>
+              {Boolean(order.emails?.length) && (
+                <section
+                  aria-label="Order emails"
+                  className="mb-5 rounded-lg border border-white/10 p-4"
+                >
+                  <h4 className="mb-3 text-xs uppercase tracking-wider text-[#cbb79c]">
+                    Order emails
+                  </h4>
+                  <ul className="space-y-3 text-sm">
+                    {order.emails?.map((email) => (
+                      <li
+                        key={email.kind}
+                        className="flex flex-wrap justify-between gap-2"
+                      >
+                        <span className="text-[#c0b4a3]">
+                          {{
+                            customer_payment_reported:
+                              "Customer · payment review",
+                            shop_new_order: "Shop · new order",
+                            customer_payment_confirmed:
+                              "Customer · confirmation",
+                            customer_ready_for_collection:
+                              "Customer · ready for collection",
+                            customer_order_dispatched: "Customer · dispatched",
+                            customer_order_completed: "Customer · thank you",
+                          }[email.kind] || email.kind}
+                        </span>
+                        <strong
+                          className={
+                            email.status === "failed"
+                              ? "text-[#f0b8a8]"
+                              : "text-[#efe8dc]"
+                          }
+                        >
+                          {{
+                            pending: "Queued",
+                            sending: "Processing",
+                            sent: "Sent",
+                            failed: "Retry needed",
+                            skipped: "Not applicable",
+                          }[email.status] || email.status}
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                  {order.emails?.some((email) => email.status === "failed") && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={retryEmails}
+                      className={`${button} mt-4 w-full`}
+                    >
+                      Retry failed emails
+                    </button>
+                  )}
+                </section>
+              )}
               <button
                 type="button"
                 disabled={linkBusy}
@@ -508,18 +623,50 @@ export default function OrdersSection() {
             ? "Confirm bank receipt"
             : pending === "cancel"
               ? "Cancel this order?"
-              : "Update fulfilment?"}
+              : pending === "ready_for_collection"
+                ? "Ready for collection"
+                : pending === "completed"
+                  ? "Complete this order?"
+                  : "Mark as dispatched?"}
         </h3>
         <p className="mt-4 break-all text-sm">
           {order?.reference} · {order ? formatPrice(order.total) : ""}
         </p>
         <p className="mt-3 text-sm leading-relaxed text-[#c0b4a3]">
           {pending === "paid"
-            ? "This marks payment confirmed and deducts the ordered stock once."
+            ? "This confirms payment, deducts the ordered stock once, and queues the customer’s confirmation email."
             : pending === "cancel"
               ? "This releases the stock reservation. Check your bank first if the customer reported payment. It does not refund a transfer."
-              : "This updates fulfilment only. Contact the customer separately; no automatic message is sent."}
+              : pending === "ready_for_collection"
+                ? "Enter the number you wrote on the packed bag. We’ll email the customer this number and let them know their records are ready for collection."
+                : pending === "completed"
+                  ? "Mark this completed after the customer has collected or received their records. We’ll send them a final thank-you email."
+                  : "This marks the order as mailed out and emails the customer to allow 2–3 days for delivery. They can reply or message us if it hasn’t arrived after 3 days."}
         </p>
+        {pending === "ready_for_collection" && (
+          <label className="mt-5 flex flex-col gap-2 text-sm">
+            Collection / bag number
+            <input
+              name="collectionNumber"
+              value={collectionNumber}
+              onChange={(e) => setCollectionNumber(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              required
+              maxLength={6}
+              pattern="[1-9][0-9]{0,5}"
+              aria-describedby="collection-number-help"
+              aria-invalid={Boolean(collectionNumber) && !validCollectionNumber}
+              className={`${field} w-full`}
+            />
+            <span id="collection-number-help" className="text-xs leading-relaxed text-[#c0b4a3]">
+              Use a whole number from 1 to 999999. Write the same number on
+              the bag; the customer will see it in their email and private order
+              page. A number awaiting collection can’t be assigned to another bag.
+            </span>
+          </label>
+        )}
         <label className="mt-5 flex items-start gap-3 text-sm">
           <input
             type="checkbox"
@@ -530,7 +677,15 @@ export default function OrdersSection() {
           <span>
             {pending === "paid"
               ? "I checked my bank and verified this reference and amount."
-              : "I have reviewed this order and confirm this action."}
+              : pending === "ready_for_collection"
+                ? "The bag is packed and I have checked its number."
+                : pending === "completed"
+                  ? order?.fulfilment === "collection"
+                    ? "The customer has collected their records."
+                    : "The customer has received their records."
+                  : pending === "dispatched"
+                    ? "I have handed this parcel to the courier."
+                    : "I have reviewed this order and confirm this action."}
           </span>
         </label>
         {actionError && (
@@ -540,7 +695,7 @@ export default function OrdersSection() {
         )}
         <div className="mt-6 flex flex-wrap gap-3">
           <button
-            disabled={busy || !verified}
+            disabled={busy || !verified || (pending === "ready_for_collection" && !validCollectionNumber)}
             onClick={confirm}
             className={`${button} bg-[#cbb79c] text-[#15120f]`}
           >

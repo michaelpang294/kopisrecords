@@ -131,13 +131,13 @@ export default function OrderPage() {
   };
   const message =
     order?.status === "payment_reported"
-      ? "We’ll verify your payment and contact you to arrange collection or delivery. You don’t need to pay again."
+      ? "Thank you! Please give us 1–2 hours to verify your transfer manually. Your order and payment update are saved. We’ll email you once confirmed and contact you on Telegram or by phone about collection or delivery. You don’t need to pay again."
       : order?.status === "paid"
         ? "Your payment has been confirmed. We’ll contact you about collection or delivery."
         : order?.status === "ready_for_collection"
-          ? "Your order is ready. Please follow the collection arrangements confirmed with the shop."
+          ? "Your records are packed and ready for collection. Tell us your collection / bag number when you arrive, or show this page. Please follow the collection timing agreed with the shop."
           : order?.status === "dispatched"
-            ? "Your order has been marked dispatched. Contact us with your reference if you need help."
+            ? "Your records have been mailed out. Please allow 2–3 days for delivery. If they haven’t arrived after 3 days, drop us a message with your order reference and we’ll help check on it."
             : order?.status === "completed"
               ? "Thanks for shopping with Kopi’s. We hope these records find a place in your rotation."
               : order?.status === "cancelled"
@@ -249,6 +249,18 @@ export default function OrderPage() {
                     {message}
                   </p>
                 )}
+                {order.fulfilment === "collection" &&
+                  order.collectionNumber &&
+                  ["ready_for_collection", "completed"].includes(order.status) && (
+                    <div className="mt-5 rounded-lg border border-[#cbb79c]/40 bg-[#cbb79c]/10 p-4">
+                      <p className="text-xs uppercase tracking-wider text-[#c0b4a3]">
+                        Collection / bag number
+                      </p>
+                      <p className="mt-2 text-4xl text-[#efe8dc]">
+                        #{order.collectionNumber}
+                      </p>
+                    </div>
+                  )}
                 {reportError && (
                   <p role="alert" className="mt-4 text-sm text-[#f0b8a8]">
                     {reportError}

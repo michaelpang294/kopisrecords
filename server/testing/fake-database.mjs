@@ -1,6 +1,7 @@
 export function database(stock = 1) {
   const state = {
     orders: new Map(),
+    emails: new Map(),
     access: new Map(),
     holds: [],
     fulfilment: new Map(),
@@ -9,6 +10,73 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (sql.startsWith("INSERT IGNORE INTO checkout_emails")) {
+      const key = args[0] + "|" + args[1];
+      if (state.emails.has(key)) return [{ affectedRows: 0 }];
+      state.emails.set(key, {
+        order_id: args[0],
+        kind: args[1],
+        status: "pending",
+        attempts: 0,
+        next_attempt_at: Date.now(),
+        created_at: Date.now(),
+      });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.startsWith("SELECT order_id,kind FROM checkout_emails"))
+      return [
+        [...state.emails.values()]
+          .filter(
+            (e) =>
+              (e.status === "pending" ||
+                (e.status === "failed" && e.attempts < 5)) &&
+              e.next_attempt_at <= Date.now(),
+          )
+          .slice(0, 10)
+          .map((e) => ({ order_id: e.order_id, kind: e.kind })),
+      ];
+    if (sql.startsWith("SELECT kind,status,attempts"))
+      return [
+        structuredClone(
+          [...state.emails.values()].filter((e) => e.order_id === args[0]),
+        ),
+      ];
+    if (sql.startsWith("UPDATE checkout_emails")) {
+      if (sql.includes("SET status = 'pending'")) {
+        for (const e of state.emails.values())
+          if (e.order_id === args[0] && e.status === "failed") {
+            e.status = "pending";
+            e.attempts = 0;
+            e.next_attempt_at = Date.now();
+          }
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("SET status = 'sending'")) {
+        const e = state.emails.get(args[1] + "|" + args[2]);
+        if (
+          !e ||
+          !(
+            e.status === "pending" ||
+            (e.status === "failed" && e.attempts < 5)
+          ) ||
+          e.next_attempt_at > Date.now()
+        )
+          return [{ affectedRows: 0 }];
+        e.status = "sending";
+        e.claim = args[0];
+        e.attempts++;
+        return [{ affectedRows: 1 }];
+      }
+      const failed = sql.includes("SET status = 'failed'");
+      const [id, kind, claim] = failed ? args.slice(1) : args;
+      const e = state.emails.get(id + "|" + kind);
+      if (!e || e.claim !== claim) return [{ affectedRows: 0 }];
+      e.status = sql.match(/SET status = '([^']+)'/)[1];
+      e.last_error = failed ? args[0] : null;
+      if (failed) e.next_attempt_at = Date.now() + 60000;
+      if (e.status === "sent") e.sent_at = new Date().toISOString();
+      return [{ affectedRows: 1 }];
+    }
     if (sql.startsWith("SELECT order_id FROM checkout_order_recovery"))
       return [
         [
@@ -40,6 +108,15 @@ export function database(stock = 1) {
         payment_status: o.status,
         status: state.fulfilment.get(o.id) || o.status,
       }));
+      if (sql.includes("WHERE o.id<>?"))
+        return [
+          rows.filter((o) =>
+            o.id !== args[0] &&
+            o.payment_status === "paid" &&
+            o.status === "ready_for_collection" &&
+            String(JSON.parse(o.details).collectionNumber) === args[1],
+          ).map((o) => ({ id: o.id })),
+        ];
       let index = 0;
       if (sql.includes(" WHERE o.id=?"))
         rows = rows.filter((o) => o.id === args[0]);
@@ -51,9 +128,9 @@ export function database(stock = 1) {
         const q = args[index].replaceAll("%", "").toLowerCase();
         rows = rows.filter((o) => {
           const d = JSON.parse(o.details);
-          return [d.reference, d.name, d.contact].some((v) =>
-            v.toLowerCase().includes(q),
-          );
+          return [d.reference, d.name, d.contact, d.email, d.telegram, d.collectionNumber]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q));
         });
       }
       if (sql.startsWith("SELECT COUNT")) return [[{ total: rows.length }]];
@@ -199,6 +276,10 @@ export function database(stock = 1) {
       const status = sql.match(/status = '([^']+)'/)[1];
       state.orders.get(args[0]).status = status;
       return [{}];
+    }
+    if (sql.startsWith("UPDATE checkout_orders SET details = ?")) {
+      state.orders.get(args[1]).details = args[0];
+      return [{ affectedRows: 1 }];
     }
     if (sql.startsWith("UPDATE checkout_reservations SET state")) {
       const status = sql.match(/state = '([^']+)'/)[1];

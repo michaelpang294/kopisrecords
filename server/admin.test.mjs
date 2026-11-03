@@ -42,6 +42,9 @@ async function setup(t, options = {}) {
       items: [{ id: 1, quantity: 1 }],
       name: "Michael",
       contact: "@customer",
+      email: "customer@example.com",
+      phone: "+65 9123 4567",
+      telegram: "@customer",
       fulfilment: method,
       address: "98 Arab Street",
       postal: "199794",
@@ -126,7 +129,8 @@ test("order filters, details, payment confirmation once, fulfilment and cancella
   );
   assert.equal(r.status, 200);
   assert.equal(r.value.total, 2);
-  assert.equal(r.value.orders[0].contact, "@customer");
+  assert.equal(r.value.orders[0].contact, "+65 9123 4567");
+  assert.equal(r.value.orders[0].telegram, "@customer");
   r = await call("/api/admin/orders/" + id, undefined, cookie);
   assert.equal(r.value.name, "Michael");
   assert.equal(r.value.holds[0].state, "reported");
@@ -150,7 +154,7 @@ test("order filters, details, payment confirmation once, fulfilment and cancella
   );
   assert.equal(pool.state.stock, 4);
   assert.equal((await action(id, "dispatched")).status, 409);
-  assert.equal((await action(id, "ready_for_collection")).status, 200);
+  assert.equal((await action(id, "ready_for_collection", { collectionNumber: 123 })).status, 200);
   assert.equal((await action(id, "completed")).status, 200);
   assert.equal(pool.state.stock, 4);
   assert.equal((await action(id, "cancel")).status, 409);
@@ -191,7 +195,9 @@ test("expired sessions cannot mutate stock; delivery follows dispatched then com
     );
   assert.equal((await action("paid")).status, 200);
   assert.equal(pool.state.stock, 4);
-  assert.equal((await action("ready_for_collection")).status, 409);
+  assert.equal((await call(`/api/admin/orders/${id}/action`, {
+    action: "ready_for_collection", confirmed: true, collectionNumber: 123,
+  }, cookie)).status, 409);
   assert.equal((await action("dispatched")).status, 200);
   assert.equal((await action("completed")).status, 200);
   assert.equal(pool.state.stock, 4);
@@ -241,6 +247,9 @@ test("private recovery persists only hashes, masks personal data, reuses order a
     items: [{ id: 1, quantity: 1 }],
     name: "Private customer",
     contact: "@private",
+    email: "customer@example.com",
+    phone: "+65 9123 4567",
+    telegram: "@customer",
     fulfilment: "delivery",
     address: "Private address",
     postal: "199794",
@@ -265,6 +274,9 @@ test("private recovery persists only hashes, masks personal data, reuses order a
     "address",
     "postal",
     "fingerprint",
+    "email",
+    "phone",
+    "telegram",
     "recoveryToken",
   ])
     assert.equal(first.value[key], undefined);
@@ -340,6 +352,9 @@ test("recovery rejects expired payments and never extends expiry", async (t) => 
     items: [{ id: 1, quantity: 1 }],
     name: "Test",
     contact: "@test",
+    email: "customer@example.com",
+    phone: "+65 9123 4567",
+    telegram: "@customer",
     fulfilment: "collection",
   });
   const token = created.value.recoveryToken;

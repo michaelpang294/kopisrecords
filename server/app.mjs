@@ -1,6 +1,7 @@
+import { createOrderEmailDispatcher } from "./order-emails.mjs";
 import { adminRequestRoutes } from "./admin-requests.mjs";
 import { recordRequestRoutes } from "./record-requests.mjs";
-import { recoveryRoutes } from "./order-access.mjs";
+import { recoveryRoutes, grantRecovery } from "./order-access.mjs";
 import { installAdminAuth } from "./admin-auth.mjs";
 import { adminOrderRoutes } from "./admin-orders.mjs";
 import {
@@ -214,11 +215,22 @@ export function createApp(pool, origins, options = {}) {
 
   recordRequestRoutes(app, pool, options.requestMailer);
 
+  const orderEmails = createOrderEmailDispatcher(pool, {
+    mailer: options.orderMailer,
+    siteUrl: options.orderSiteUrl,
+    issueLink: (id) => grantRecovery(pool, id),
+  });
+  app.locals.orderEmails = orderEmails;
   const requireAdmin = installAdminAuth(app, options);
-  adminOrderRoutes(app, pool, requireAdmin);
+  adminOrderRoutes(app, pool, requireAdmin, orderEmails);
   adminRequestRoutes(app, pool, requireAdmin);
-  recoveryRoutes(app, pool, { transaction, orderResponse, requireAdmin });
-  checkoutRoutes(app, pool);
+  recoveryRoutes(app, pool, {
+    transaction,
+    orderResponse,
+    requireAdmin,
+    orderEmails,
+  });
+  checkoutRoutes(app, pool, orderEmails);
 
   app.get("/api/health", async (req, res) => {
     await pool.execute("SELECT 1 AS ok");

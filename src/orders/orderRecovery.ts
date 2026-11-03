@@ -9,6 +9,7 @@ export type RecoveredOrder = {
   serverTime: string;
   recoveryToken?: string;
   fulfilment?: string;
+  collectionNumber?: number;
   items: {
     id: number;
     title: string;

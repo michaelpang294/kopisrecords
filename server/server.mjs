@@ -1,3 +1,4 @@
+import { ensureOrderEmails } from "./order-emails.mjs";
 import { ensureRecordRequests } from "./record-requests.mjs";
 import { ensureOrders, expireOrders } from "./checkout.mjs";
 import mysql from "mysql2/promise";
@@ -27,6 +28,7 @@ try {
   // Check the actual schema too, so a missing import is caught at startup.
   await pool.execute("SELECT id FROM stock LIMIT 1");
   await ensureOrders(pool);
+  await ensureOrderEmails(pool);
   await ensureRecordRequests(pool);
   await expireOrders(pool);
 } catch (error) {
@@ -60,6 +62,9 @@ const expiryTimer = setInterval(
   30000,
 );
 expiryTimer.unref();
+app.locals.orderEmails.kick();
+const emailTimer = setInterval(() => app.locals.orderEmails.kick(), 30000);
+emailTimer.unref();
 // Passenger binds its own socket; local development still uses loopback.
 const ready = () => {
   console.log("Kopi's Records API started; database connected.");
@@ -79,6 +84,9 @@ server.on("error", async (error) => {
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, () =>
     server.close(async () => {
+      clearInterval(expiryTimer);
+      clearInterval(emailTimer);
+      await app.locals.orderEmails.stop();
       await pool.end();
       process.exit(0);
     }),

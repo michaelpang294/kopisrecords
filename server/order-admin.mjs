@@ -1,3 +1,8 @@
+import { grantRecovery } from "./order-access.mjs";
+import {
+  ensureOrderEmails,
+  createOrderEmailDispatcher,
+} from "./order-emails.mjs";
 // Local terminal only. There is deliberately no unauthenticated HTTP payment-confirmation endpoint.
 import mysql from "mysql2/promise";
 import { manageOrder } from "./checkout.mjs";
@@ -20,8 +25,12 @@ const pool = mysql.createPool({
   connectionLimit: 2,
 });
 try {
+  await ensureOrderEmails(pool);
   const result = await manageOrder(pool, action, reference);
   console.log(result);
+  await createOrderEmailDispatcher(pool, {
+    issueLink: (id) => grantRecovery(pool, id),
+  }).flush();
 } catch (e) {
   console.error(e.message);
   process.exitCode = 1;

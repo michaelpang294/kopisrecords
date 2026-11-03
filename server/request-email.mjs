@@ -1,6 +1,5 @@
-import nodemailer from "nodemailer";
-
-export const shopEmail = "kopisrecords@gmail.com";
+import { createGmailSender, shopEmail } from "./gmail.mjs";
+export { shopEmail } from "./gmail.mjs";
 const escape = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -47,31 +46,11 @@ export function requestEmail(request) {
 }
 
 export function createRequestMailer(env = process.env) {
-  const password = (env.GMAIL_APP_PASSWORD || "").replace(/\s/g, "");
-  const transporter = password
-    ? nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: { user: shopEmail, pass: password },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-      })
-    : null;
+  const sender = createGmailSender(env);
   return {
-    ready: Boolean(transporter),
+    ready: sender.ready,
     async send(request) {
-      if (!transporter) throw new Error("Gmail is not configured.");
-      const result = await transporter.sendMail(requestEmail(request));
-      if (
-        !result.accepted?.some(
-          (address) =>
-            String(address).toLowerCase() === request.email.toLowerCase(),
-        )
-      ) {
-        throw new Error("Customer email was not accepted.");
-      }
+      await sender.send(requestEmail(request));
     },
   };
 }
