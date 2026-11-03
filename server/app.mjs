@@ -1,4 +1,5 @@
 import { createOrderEmailDispatcher } from "./order-emails.mjs";
+import { createRestockDispatcher, restockAlertRoutes } from "./restock-alerts.mjs";
 import { adminRequestRoutes } from "./admin-requests.mjs";
 import { recordRequestRoutes } from "./record-requests.mjs";
 import { recoveryRoutes, grantRecovery } from "./order-access.mjs";
@@ -222,6 +223,14 @@ export function createApp(pool, origins, options = {}) {
   });
   app.locals.orderEmails = orderEmails;
   const requireAdmin = installAdminAuth(app, options);
+  const restockAlerts = createRestockDispatcher(pool, {
+    transaction,
+    availableStock,
+    mailer: options.restockMailer,
+    siteUrl: options.orderSiteUrl,
+  });
+  app.locals.restockAlerts = restockAlerts;
+  restockAlertRoutes(app, pool, { transaction, availableStock, dispatcher: restockAlerts, requireAdmin });
   adminOrderRoutes(app, pool, requireAdmin, orderEmails);
   adminRequestRoutes(app, pool, requireAdmin);
   recoveryRoutes(app, pool, {
@@ -308,6 +317,7 @@ export function createApp(pool, origins, options = {}) {
         ]);
         return productForJson({ ...product, stock: req.body.stock });
       });
+      restockAlerts.kick();
       res.json(saved);
     } catch (error) {
       next(error);
@@ -363,6 +373,7 @@ export function createApp(pool, origins, options = {}) {
       req.body.expectedStock === undefined
         ? await save(pool)
         : await transaction(pool, save);
+    restockAlerts.kick();
     res.json(saved);
   });
 

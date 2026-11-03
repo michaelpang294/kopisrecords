@@ -1,4 +1,5 @@
 import { ensureOrderEmails } from "./order-emails.mjs";
+import { ensureRestockAlerts } from "./restock-alerts.mjs";
 import { ensureRecordRequests } from "./record-requests.mjs";
 import { ensureOrders, expireOrders } from "./checkout.mjs";
 import mysql from "mysql2/promise";
@@ -30,6 +31,7 @@ try {
   await ensureOrders(pool);
   await ensureOrderEmails(pool);
   await ensureRecordRequests(pool);
+  await ensureRestockAlerts(pool);
   await expireOrders(pool);
 } catch (error) {
   console.error(
@@ -63,7 +65,11 @@ const expiryTimer = setInterval(
 );
 expiryTimer.unref();
 app.locals.orderEmails.kick();
-const emailTimer = setInterval(() => app.locals.orderEmails.kick(), 30000);
+app.locals.restockAlerts.kick();
+const emailTimer = setInterval(() => {
+  app.locals.orderEmails.kick();
+  app.locals.restockAlerts.kick();
+}, 30000);
 emailTimer.unref();
 // Passenger binds its own socket; local development still uses loopback.
 const ready = () => {
@@ -87,6 +93,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       clearInterval(expiryTimer);
       clearInterval(emailTimer);
       await app.locals.orderEmails.stop();
+      await app.locals.restockAlerts.stop();
       await pool.end();
       process.exit(0);
     }),

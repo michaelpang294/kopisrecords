@@ -9,6 +9,7 @@ import type { Product } from "../scripts/picksOfTheWeek";
 import { typography as type } from "../styles/typography";
 import { useCart } from "../cart/CartContext";
 import { getPriceCents, getStock } from "../cart/cartStorage";
+import RestockSignup from "../stock/RestockSignup";
 
 const focus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4";
@@ -53,8 +54,12 @@ function Cover({ product }: { product: Product }) {
 }
 
 export default function ProductPage() {
-  const { addItem, quantityFor, storageMessage } = useCart();
   const { id } = useParams<{ id: string }>();
+  return <ProductDetails key={id || "missing"} id={id} />;
+}
+
+function ProductDetails({ id }: { id?: string }) {
+  const { addItem, quantityFor, storageMessage } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -64,10 +69,6 @@ export default function ProductPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError(false);
-    setQuantity("1");
-    setNotice({ text: "", error: false });
     window.scrollTo(0, 0);
 
     fetch(`${API}/api/stock`, { signal: controller.signal })
@@ -87,6 +88,14 @@ export default function ProductPage() {
       });
     return () => controller.abort();
   }, [id, attempt]);
+
+  function reload() {
+    setLoading(true);
+    setError(false);
+    setQuantity("1");
+    setNotice({ text: "", error: false });
+    setAttempt((value) => value + 1);
+  }
 
   const product = products.find((item) => String(item.id) === id);
   const stock = getStock(product?.stock);
@@ -183,7 +192,7 @@ export default function ProductPage() {
             {error && (
               <button
                 type="button"
-                onClick={() => setAttempt((value) => value + 1)}
+                onClick={reload}
                 className={`${type.ui} ${focus} mt-6 min-h-11 rounded-md bg-[#cbb79c] px-5 py-2 text-[#15120f] hover:bg-[#dfcdb3]`}
               >
                 Try again
@@ -329,6 +338,14 @@ export default function ProductPage() {
                       </p>
                     )}
                   </form>
+
+                  {stock < 1 && (
+                    <RestockSignup
+                      key={product.id}
+                      productId={Number(product.id)}
+                      onAvailable={reload}
+                    />
+                  )}
 
                   {stock < 1 && (
                     <Link

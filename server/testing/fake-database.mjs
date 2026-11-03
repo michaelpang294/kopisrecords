@@ -2,6 +2,8 @@ export function database(stock = 1) {
   const state = {
     orders: new Map(),
     emails: new Map(),
+    alerts: new Map(),
+    productPresent: true,
     access: new Map(),
     holds: [],
     fulfilment: new Map(),
@@ -10,6 +12,59 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (sql.startsWith("SELECT a.alert_id FROM restock_alerts")) {
+      const held = state.holds.filter((h) => h.product_id === 1 &&
+        (h.state === "reported" || (h.state === "active" && h.expires_at > Date.now())))
+        .reduce((sum, h) => sum + h.quantity, 0);
+      return [[...state.alerts.values()].filter((a) => state.productPresent && a.product_id === 1 && state.stock > held &&
+        (a.status === "waiting" || (a.status === "failed" && a.attempts < 5)) && +new Date(a.next_attempt_at) <= Date.now())
+        .slice(0, 10).map((a) => ({ alert_id: a.alert_id }))];
+    }
+    if (sql.startsWith("SELECT * FROM restock_alerts WHERE product_id"))
+      return [structuredClone([...state.alerts.values()].filter((a) => a.product_id === args[0] && a.email === args[1]))];
+    if (sql.startsWith("SELECT * FROM restock_alerts WHERE alert_id"))
+      return [state.alerts.has(args[0]) ? [structuredClone(state.alerts.get(args[0]))] : []];
+    if (sql.startsWith("SELECT COUNT(*) AS total,COALESCE(SUM(email")) {
+      const recent = [...state.alerts.values()].filter((a) => +new Date(a.created_at) > Date.now() - 3600000);
+      return [[{ total: recent.length, customer: recent.filter((a) => a.email === args[0]).length,
+        source: recent.filter((a) => a.ip_hash === args[1]).length }]];
+    }
+    if (sql.startsWith("INSERT INTO restock_alerts")) {
+      const [alert_id, generation, product_id, email, ip_hash] = args;
+      state.alerts.set(alert_id, { alert_id, generation, product_id, email, ip_hash, status: "waiting", attempts: 0,
+        next_attempt_at: new Date().toISOString(), created_at: new Date().toISOString(), claim: null });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.startsWith("UPDATE restock_alerts")) {
+      if (sql.includes("SET generation = ?")) {
+        const a = state.alerts.get(args[2]);
+        if (!a || a.status !== "sent") return [{ affectedRows: 0 }];
+        Object.assign(a, { generation: args[0], ip_hash: args[1], status: "waiting", attempts: 0, claim: null,
+          next_attempt_at: new Date().toISOString(), sent_at: null, created_at: new Date().toISOString() });
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("WHERE status = 'failed'")) {
+        for (const a of state.alerts.values()) if (a.status === "failed")
+          Object.assign(a, { status: "waiting", attempts: 0, next_attempt_at: new Date().toISOString() });
+        return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("SET status = 'sending'")) {
+        const a = state.alerts.get(args[1]);
+        if (!a || a.generation !== args[2] || !["waiting", "failed"].includes(a.status) || a.attempts >= 5 || +new Date(a.next_attempt_at) > Date.now())
+          return [{ affectedRows: 0 }];
+        Object.assign(a, { status: "sending", claim: args[0], attempts: a.attempts + 1 });
+        return [{ affectedRows: 1 }];
+      }
+      const failed = sql.includes("SET status = 'failed'");
+      const [id, generation, claim] = failed ? args.slice(1) : args;
+      const a = state.alerts.get(id);
+      if (!a || a.generation !== generation || a.claim !== claim || a.status !== "sending") return [{ affectedRows: 0 }];
+      a.status = failed ? "failed" : "sent";
+      a.last_error = failed ? args[0] : null;
+      if (failed) a.next_attempt_at = new Date(Date.now() + 60000).toISOString();
+      else a.sent_at = new Date().toISOString();
+      return [{ affectedRows: 1 }];
+    }
     if (sql.startsWith("INSERT IGNORE INTO checkout_emails")) {
       const key = args[0] + "|" + args[1];
       if (state.emails.has(key)) return [{ affectedRows: 0 }];
@@ -199,7 +254,7 @@ export function database(stock = 1) {
       ];
     if (sql.startsWith("SELECT * FROM stock WHERE id"))
       return [
-        [
+        !state.productPresent || args[0] !== 1 ? [] : [
           {
             id: 1,
             title: "Test",
