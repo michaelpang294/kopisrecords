@@ -1,4 +1,4 @@
-import type { Product } from "./picksOfTheWeek";
+import type { Product } from "./product";
 
 export function weeklyPicks(products: Product[]): Product[] {
   return products.filter((product) => {

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { informationCategories } from "./scripts/picksOfTheWeek";
 import { typography as type } from "./styles/typography";
 
 const linkClass = `${type.small} inline-flex min-h-11 items-center py-2 text-[#c0b4a3] transition-colors hover:text-[#efe8dc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4 motion-reduce:transition-none`;
@@ -13,9 +12,6 @@ const socials = [
 ];
 
 export default function Footer() {
-  const information = informationCategories.filter(
-    (item) => item.name.trim().toLowerCase() !== "admin",
-  );
 
   return (
     <footer
@@ -86,20 +82,20 @@ export default function Footer() {
                   Blog
                 </Link>
               </li>
-              {information.map((item) => (
-                <li key={item.name}>
-                  <Link
-                    to={`/${item.link.replace(/^\/+/, "")}`}
-                    className={linkClass}
-                  >
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
               <li>
-                <a href="mailto:kopisrecords@gmail.com" className={linkClass}>
-                  Contact us
-                </a>
+                <Link to="/" className={linkClass}>
+                  FAQ
+                </Link>
+              </li>
+              <li>
+                <Link to="/" className={linkClass}>
+                  Local Gigs
+                </Link>
+              </li>
+              <li>
+                <Link to="/" className={linkClass}>
+                  Contact Us
+                </Link>
               </li>
             </ul>
           </nav>

@@ -63,10 +63,10 @@ function readTags(value) {
 function productForJson(row, publicApiUrl) {
   // MySQL DECIMAL stays exact in storage; React's Product type expects a number.
   let cover = row.cover_image;
-  // Only rewrite this project's local sample files; preserve remote image URLs.
+  // Local cover files use the hosted API after deployment; remote art is preserved.
   if (publicApiUrl && typeof cover === "string") {
     const match = cover.match(
-      /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/covers\/(sample-\d+\.svg)$/,
+      /^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/(?:api\/)?covers\/(.+)$/,
     );
     if (match) cover = `${publicApiUrl.replace(/\/$/, "")}/covers/${match[1]}`;
   }
@@ -228,6 +228,7 @@ export function createApp(pool, origins, options = {}) {
     availableStock,
     mailer: options.restockMailer,
     siteUrl: options.orderSiteUrl,
+    requireConfirmation: options.restockRequireConfirmation,
   });
   app.locals.restockAlerts = restockAlerts;
   restockAlertRoutes(app, pool, { transaction, availableStock, dispatcher: restockAlerts, requireAdmin });

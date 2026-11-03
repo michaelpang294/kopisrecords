@@ -100,7 +100,7 @@ export default function RequestRecordPage() {
               </Link>
 
               <p className="mb-5 mt-9 text-[10px] uppercase tracking-[0.22em] text-[#cbb79c] sm:text-[11px]">
-                The search is part of the story
+                Looking for a record we don't have?
               </p>
 
               <h1 className="m-0 font-[Marcellus,Georgia,serif] text-[clamp(44px,5.5vw,76px)] font-normal leading-[1.08] tracking-[-0.025em]">
@@ -109,13 +109,8 @@ export default function RequestRecordPage() {
                 <span className="text-[#cbb79c]">On our radar.</span>
               </h1>
 
-              <p className="mb-0 mt-7 max-w-[440px] text-[15px] leading-7 text-[#c0b4a3]">
-                The one you missed. The album you keep coming back to. The
-                record you can’t seem to find anywhere.
-              </p>
-
               <p className="mb-0 mt-4 max-w-[440px] text-[15px] leading-7 text-[#c0b4a3]">
-                Tell us what you’re looking for. We’ll see what we can dig up.
+                Tell us what you’re looking for. We’ll see what we can source up.
               </p>
 
               {/* RECORD SLEEVE */}
@@ -138,22 +133,15 @@ export default function RequestRecordPage() {
 
                 {/* Paper sleeve */}
                 <div className="absolute left-0 top-0 flex h-[250px] w-[250px] -rotate-6 flex-col justify-between border border-[#efe8dc]/15 bg-[#28231d] p-6 shadow-xl">
-                  <div className="flex justify-between text-[9px] uppercase tracking-[0.18em] text-[#cbb79c]">
-                    <span>Kopi’s Records</span>
-                    <span>33⅓ RPM</span>
-                  </div>
-
                   <div>
-                    <p className="m-0 font-[Marcellus,Georgia,serif] text-[42px] leading-[1.05]">
-                      Worth
-                      <br />
-                      the dig.
+                    <p className="m-0 font-[Marcellus,Georgia,serif] text-[30px] leading-[1.05]">
+                      Cheapest price guaranteed! 
                     </p>
                     <div className="mt-5 h-px w-10 bg-[#cbb79c]" />
                   </div>
 
                   <p className="m-0 text-[9px] uppercase tracking-[0.2em] text-[#c0b4a3]">
-                    Your next favourite awaits
+                    Just tell us what you're looking for!
                   </p>
                 </div>
               </div>
@@ -167,7 +155,7 @@ export default function RequestRecordPage() {
                     From your wishlist
                   </p>
                   <h2 className="m-0 font-[Marcellus,Georgia,serif] text-3xl font-normal">
-                    Request a record
+                    Request for a record
                   </h2>
                 </div>
               </div>
@@ -229,13 +217,6 @@ export default function RequestRecordPage() {
                       className={inputClass}
                       aria-describedby="email-hint"
                     />
-                    <p
-                      id="email-hint"
-                      className="mb-0 mt-2 text-xs leading-5 text-[#c0b4a3]"
-                    >
-                      We’ll email you a confirmation and follow up about your
-                      request.
-                    </p>
                   </div>
 
                   <div>
@@ -259,12 +240,6 @@ export default function RequestRecordPage() {
                       onChange={(event) => setContact(event.target.value)}
                       className={inputClass}
                     />
-                    <p
-                      id="contact-hint"
-                      className="mb-0 mt-2 text-xs leading-5 text-[#c0b4a3]"
-                    >
-                      So we can get in touch about your request.
-                    </p>
                   </div>
 
                   <div>
@@ -315,8 +290,8 @@ export default function RequestRecordPage() {
                 <div className="border-t border-white/10 pt-6">
                   <p className="mb-5 mt-0 text-xs leading-6 text-[#c0b4a3]">
                     Requests aren’t orders or reservations. Availability and
-                    pricing will need to be confirmed. We use your details to
-                    respond to this request.
+                    pricing will need to be confirmed. We use your contact information to
+                    respond to your request.
                   </p>
 
                   <button
@@ -330,15 +305,11 @@ export default function RequestRecordPage() {
                         ? "Request received"
                         : received
                           ? "Check / retry confirmation email"
-                          : "Send record request"}
+                          : "Send request"}
                     <span aria-hidden="true" className="text-lg">
                       ↗
                     </span>
                   </button>
-
-                  <p className="mb-0 mt-3 text-center text-xs leading-5 text-[#c0b4a3]">
-                    Sent directly to Kopi’s Records. No email app needed.
-                  </p>
                 </div>
 
                 {error && (
@@ -397,9 +368,9 @@ export default function RequestRecordPage() {
             },
             {
               number: "02",
-              title: "We’ll have a dig.",
+              title: "We’ll source for it.",
               description:
-                "We’ll check whether we can source it and get back to you with what we find.",
+                "We’ll check whether we can get it and get back to you with what we find.",
             },
             {
               number: "03",

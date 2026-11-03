@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import Footer from "../footer";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { typography as type } from "../styles/typography";
 import shopBackground from "../assets/backgrounds/third-slide-bg.png";
 

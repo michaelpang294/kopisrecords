@@ -1,0 +1,28 @@
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !^https$ [NC]
+RewriteRule ^ https://kopisrecords.shop%{REQUEST_URI} [R=302,L]
+RewriteCond %{HTTP_HOST} ^www\.kopisrecords\.shop$ [NC]
+RewriteRule ^ https://kopisrecords.shop%{REQUEST_URI} [R=301,L]
+# Keep the existing cPanel Node application and its api/.htaccess intact.
+RewriteRule ^api(?:/|$) - [L]
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+# React deep links: /blog, /admin, /order and stock-alert confirmation.
+RewriteRule ^ index.html [L]
+</IfModule>
+<IfModule mod_authz_core.c>
+<FilesMatch "(?i)(^\.env|\.(sql|zip|log|bak|cjs|mjs|ts|tsx)$|^(package|package-lock)\.json$)">
+Require all denied
+</FilesMatch>
+</IfModule>
+<IfModule mod_headers.c>
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+<Files "index.html">
+Header set Cache-Control "no-store, must-revalidate"
+</Files>
+</IfModule>

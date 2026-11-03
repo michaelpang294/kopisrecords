@@ -1,4 +1,4 @@
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { readRecordTags } from "./recordTagOptions";
 export type ProductForm = {
   title: string;

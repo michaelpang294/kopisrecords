@@ -1,46 +1,17 @@
-import { ensureOrderEmails } from "./order-emails.mjs";
-import { ensureRestockAlerts } from "./restock-alerts.mjs";
-import { ensureRecordRequests } from "./record-requests.mjs";
-import { ensureOrders, expireOrders } from "./checkout.mjs";
-import mysql from "mysql2/promise";
+import { loadRuntimeEnv, databasePool, databaseSessions, prepareSchema, assertProductionSettings } from "./runtime.mjs";
+import { expireOrders } from "./checkout.mjs";
 import { createApp } from "./app.mjs";
 
-for (const key of ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"]) {
-  if (!process.env[key]) {
-    console.error(
-      `Missing ${key}. Copy .env.example to .env and fill in the database settings.`,
-    );
-    process.exit(1);
-  }
-}
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  connectionLimit: 5,
-  waitForConnections: true,
-  charset: "utf8mb4",
-});
-
+loadRuntimeEnv();
+let pool;
 try {
-  // Check the actual schema too, so a missing import is caught at startup.
-  await pool.execute("SELECT id FROM stock LIMIT 1");
-  await ensureOrders(pool);
-  await ensureOrderEmails(pool);
-  await ensureRecordRequests(pool);
-  await ensureRestockAlerts(pool);
+  assertProductionSettings();
+  pool = databasePool();
+  await prepareSchema(pool);
   await expireOrders(pool);
 } catch (error) {
-  console.error(
-    `Database startup failed (${error.code ?? error.message}): ${error.sqlMessage ?? error.message}`,
-  );
-  console.error(
-    "Check that MySQL is running, import database/01-setup.sql, and verify .env.",
-  );
-  await pool.end();
+  console.error("Database/configuration startup failed:", error.code || error.message);
+  if (pool) await pool.end();
   process.exit(1);
 }
 
@@ -55,22 +26,24 @@ const passenger = typeof globalThis.PhusionPassenger !== "undefined";
 const app = createApp(pool, origins, {
   passengerMount: passenger ? "/api" : undefined,
   publicApiUrl: process.env.PUBLIC_API_URL,
+  sessionStore: databaseSessions(pool),
 });
-const expiryTimer = setInterval(
+const cronMode = process.env.BACKGROUND_MODE === "cron";
+const expiryTimer = cronMode ? null : setInterval(
   () =>
     expireOrders(pool).catch((error) =>
       console.error("Order expiry update failed:", error.code ?? error.message),
     ),
   30000,
 );
-expiryTimer.unref();
+expiryTimer?.unref();
 app.locals.orderEmails.kick();
 app.locals.restockAlerts.kick();
-const emailTimer = setInterval(() => {
+const emailTimer = cronMode ? null : setInterval(() => {
   app.locals.orderEmails.kick();
   app.locals.restockAlerts.kick();
 }, 30000);
-emailTimer.unref();
+emailTimer?.unref();
 // Passenger binds its own socket; local development still uses loopback.
 const ready = () => {
   console.log("Kopi's Records API started; database connected.");

@@ -1,5 +1,5 @@
 {
-  "name": "kopisrecords-local-api",
+  "name": "kopisrecords-api",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node --env-file=.env server.mjs",
     "dev": "node --watch --env-file=.env server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "jobs": "node worker.mjs",
+    "check:production": "node preflight.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

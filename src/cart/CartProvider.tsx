@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { CartContext } from "./CartContext";
 import {
   CART_KEY,

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import Footer from "../footer";
 import ZineShowcase from "../components/ZineShowcase";
 import { weeklyPicks } from "../scripts/weeklyPicks";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import hero from "../assets/backgrounds/front-slide-bg.png";
 import community from "../assets/backgrounds/community.gif";
 import { typography as type } from "../styles/typography";

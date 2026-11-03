@@ -4,7 +4,9 @@ import {
   createOrderEmailDispatcher,
 } from "./order-emails.mjs";
 // Local terminal only. There is deliberately no unauthenticated HTTP payment-confirmation endpoint.
-import mysql from "mysql2/promise";
+import { loadRuntimeEnv, databasePool, assertProductionSettings } from "./runtime.mjs";
+loadRuntimeEnv();
+assertProductionSettings();
 import { manageOrder } from "./checkout.mjs";
 const [action, reference] = process.argv.slice(2);
 if (
@@ -16,14 +18,7 @@ if (
   );
   process.exit(1);
 }
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  connectionLimit: 2,
-});
+const pool = databasePool(process.env, 2);
 try {
   await ensureOrderEmails(pool);
   const result = await manageOrder(pool, action, reference);

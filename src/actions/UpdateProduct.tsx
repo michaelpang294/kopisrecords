@@ -1,6 +1,6 @@
 import useUnsavedChanges from "../admin/useUnsavedChanges";
 import { useEffect, useState, type FormEvent } from "react";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { adminJson } from "../admin/adminApi";
 import ProductFields from "../admin/ProductFields";
 import {

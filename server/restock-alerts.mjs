@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createGmailSender, shopEmail } from "./gmail.mjs";
+import { subscribeConfirmed, sendOptinEmails, optinRoutes } from "./restock-optin.mjs";
 
 export async function ensureRestockAlerts(pool) {
   await pool.execute(`CREATE TABLE IF NOT EXISTS restock_alerts (
@@ -30,6 +31,7 @@ function validate(body) {
   return { productId: body.productId, email };
 }
 export function restockAlertRoutes(app, pool, { transaction, availableStock, dispatcher, requireAdmin }) {
+  optinRoutes(app, pool, { transaction, dispatcher });
   const attempts = new Map();
   app.post("/api/restock-alerts", async (req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -53,6 +55,7 @@ export function restockAlertRoutes(app, pool, { transaction, availableStock, dis
           return { status: 409, error: "This record is available now. Check availability to add it to your cart.", code: "AVAILABLE" };
         const [existing] = await db.execute(
           "SELECT * FROM restock_alerts WHERE product_id = ? AND email = ?", [value.productId, value.email]);
+        if (dispatcher.requireConfirmation) return subscribeConfirmed(db, value, existing, ipHash);
         // The same generic response protects existing subscriber information.
         if (existing.length && ["waiting", "sending", "failed"].includes(existing[0].status)) return {};
         const [limits] = await db.execute(
@@ -72,12 +75,18 @@ export function restockAlertRoutes(app, pool, { transaction, availableStock, dis
         return {};
       });
       if (result.status) return res.status(result.status).json({ error: result.error, ...(result.code ? { code: result.code } : {}) });
-      res.status(202).json({ message: "You’re on the list. We’ll email you once when this record is available again." });
+      if (dispatcher.requireConfirmation) dispatcher.kick();
+      res.status(202).json({
+        message: dispatcher.requireConfirmation ? "Check your inbox to confirm your email for this stock alert." : "You’re on the list. We’ll email you once when this record is available again.",
+        confirmationRequired: dispatcher.requireConfirmation,
+      });
     } catch (error) { next(error); }
   });
   // Failed alerts can be retried by the shop, without subscribing or emailing anyone twice.
   app.post("/api/admin/restock-alerts/retry", requireAdmin, async (req, res) => {
     await pool.execute("UPDATE restock_alerts SET status = 'waiting',attempts = 0,next_attempt_at = NOW(3) WHERE status = 'failed'");
+    if (dispatcher.requireConfirmation)
+      await pool.execute("UPDATE restock_optins SET status = 'pending',attempts = 0,next_attempt_at = NOW(3) WHERE status = 'failed'");
     dispatcher.kick();
     res.json({ message: "Failed stock alerts queued for retry." });
   });
@@ -101,7 +110,7 @@ export function restockEmail(alert, product, origin) {
   };
 }
 
-export function createRestockDispatcher(pool, { transaction, availableStock, mailer = createGmailSender(), siteUrl }) {
+export function createRestockDispatcher(pool, { transaction, availableStock, mailer = createGmailSender(), siteUrl, requireConfirmation = process.env.NODE_ENV === 'production' || process.env.RESTOCK_REQUIRE_CONFIRMATION === '1' }) {
   const parsed = new URL(siteUrl || process.env.ORDER_SITE_URL || (process.env.NODE_ENV === "production" ? "https://kopisrecords.shop" : "http://localhost:5173"));
   if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password)
     throw Error("ORDER_SITE_URL must be an HTTP(S) website origin.");
@@ -110,8 +119,11 @@ export function createRestockDispatcher(pool, { transaction, availableStock, mai
     if (stopped || !mailer.ready) return;
     if (running) return running;
     running = (async () => {
+      if (requireConfirmation) await sendOptinEmails(pool, mailer, parsed.origin);
       const [candidates] = await pool.execute(
-        "SELECT a.alert_id FROM restock_alerts a INNER JOIN stock s ON s.id=a.product_id WHERE (a.status='waiting' OR (a.status='failed' AND a.attempts<5)) AND a.next_attempt_at<=NOW(3) AND s.stock>COALESCE((SELECT SUM(r.quantity) FROM checkout_reservations r WHERE r.product_id=s.id AND (r.state='reported' OR (r.state='active' AND r.expires_at>NOW(3)))),0) ORDER BY a.created_at,a.alert_id LIMIT 10");
+        "SELECT a.alert_id FROM restock_alerts a INNER JOIN stock s ON s.id=a.product_id " +
+        (requireConfirmation ? "INNER JOIN restock_optins v ON v.alert_id=a.alert_id AND v.generation=a.generation AND v.confirmed_at IS NOT NULL " : "") +
+        "WHERE (a.status='waiting' OR (a.status='failed' AND a.attempts<5)) AND a.next_attempt_at<=NOW(3) AND s.stock>COALESCE((SELECT SUM(r.quantity) FROM checkout_reservations r WHERE r.product_id=s.id AND (r.state='reported' OR (r.state='active' AND r.expires_at>NOW(3)))),0) ORDER BY a.created_at,a.alert_id LIMIT 10");
       for (const candidate of candidates) {
         const claimed = await transaction(pool, async (db) => {
           const [alerts] = await db.execute("SELECT * FROM restock_alerts WHERE alert_id = ?", [candidate.alert_id]);
@@ -150,6 +162,7 @@ export function createRestockDispatcher(pool, { transaction, availableStock, mai
     try { await running; } finally { running = null; }
   }
   return {
+    requireConfirmation,
     get ready() { return mailer.ready; },
     flush,
     async stop() { stopped = true; if (running) await running; },

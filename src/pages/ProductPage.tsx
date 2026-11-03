@@ -5,7 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight, Disc3, Minus, Plus, ShoppingBag } from "lucide-react";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { typography as type } from "../styles/typography";
 import { useCart } from "../cart/CartContext";
 import { getPriceCents, getStock } from "../cart/cartStorage";

@@ -3,6 +3,7 @@ export function database(stock = 1) {
     orders: new Map(),
     emails: new Map(),
     alerts: new Map(),
+    optins: new Map(),
     productPresent: true,
     access: new Map(),
     holds: [],
@@ -12,11 +13,48 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (sql.startsWith("SELECT * FROM restock_optins"))
+      return [state.optins.has(args[0]+"|"+args[1]) ? [structuredClone(state.optins.get(args[0]+"|"+args[1]))] : []];
+    if (sql.startsWith("INSERT INTO restock_optins")) {
+      state.optins.set(args[0]+"|"+args[1], { alert_id: args[0], generation: args[1], status: "pending", attempts: 0, next_attempt_at: new Date().toISOString(), confirmed_at: null });
+      return [{ affectedRows: 1 }];
+    }
+    if (sql.startsWith("SELECT v.alert_id,v.generation,a.email"))
+      return [[...state.optins.values()].filter((v) => {
+        const a=state.alerts.get(v.alert_id);
+        return state.productPresent && a && a.generation===v.generation && a.status==='unconfirmed' &&
+          (v.status==='pending'||(v.status==='failed'&&v.attempts<5)) && +new Date(v.next_attempt_at)<=Date.now();
+      }).slice(0,10).map((v)=>({...structuredClone(v),email:state.alerts.get(v.alert_id).email,artist:'Artist',title:'Test'}))];
+    if (sql.startsWith("SELECT v.alert_id,v.generation,v.expires_at"))
+      return [[...state.optins.values()].filter((v) => v.token_hash===args[0] && state.alerts.get(v.alert_id)?.generation===v.generation).map((v)=>structuredClone(v))];
+    if (sql.startsWith("UPDATE restock_optins")) {
+      if (sql.includes("SET status = 'pending'")) {
+        for(const v of state.optins.values()) if(v.status==='failed') Object.assign(v,{status:'pending',attempts:0,next_attempt_at:new Date().toISOString()});
+        return [{affectedRows:1}];
+      }
+      if (sql.includes("SET status = 'sending'")) {
+        const v=state.optins.get(args[2]+'|'+args[3]);
+        if(!v||!['pending','failed'].includes(v.status)||v.attempts>=5||+new Date(v.next_attempt_at)>Date.now())return [{affectedRows:0}];
+        Object.assign(v,{status:'sending',claim:args[0],token_hash:args[1],expires_at:new Date(Date.now()+86400000).toISOString(),attempts:v.attempts+1});
+        return [{affectedRows:1}];
+      }
+      if (sql.includes("SET status = 'confirmed'")) {
+        Object.assign(state.optins.get(args[0]+'|'+args[1]),{status:'confirmed',confirmed_at:new Date().toISOString()});
+        return [{affectedRows:1}];
+      }
+      const failed=sql.includes("SET status = 'failed'");
+      const [id,gen,claim]=failed?args.slice(1):args; const v=state.optins.get(id+'|'+gen);
+      if(!v||v.claim!==claim||v.status!=='sending')return [{affectedRows:0}];
+      v.status=failed?'failed':'sent';v.last_error=failed?args[0]:null;
+      if(failed)v.next_attempt_at=new Date(Date.now()+60000).toISOString();else v.sent_at=new Date().toISOString();
+      return [{affectedRows:1}];
+    }
     if (sql.startsWith("SELECT a.alert_id FROM restock_alerts")) {
       const held = state.holds.filter((h) => h.product_id === 1 &&
         (h.state === "reported" || (h.state === "active" && h.expires_at > Date.now())))
         .reduce((sum, h) => sum + h.quantity, 0);
       return [[...state.alerts.values()].filter((a) => state.productPresent && a.product_id === 1 && state.stock > held &&
+        (!sql.includes('INNER JOIN restock_optins') || state.optins.get(a.alert_id+'|'+a.generation)?.confirmed_at) &&
         (a.status === "waiting" || (a.status === "failed" && a.attempts < 5)) && +new Date(a.next_attempt_at) <= Date.now())
         .slice(0, 10).map((a) => ({ alert_id: a.alert_id }))];
     }
@@ -31,15 +69,20 @@ export function database(stock = 1) {
     }
     if (sql.startsWith("INSERT INTO restock_alerts")) {
       const [alert_id, generation, product_id, email, ip_hash] = args;
-      state.alerts.set(alert_id, { alert_id, generation, product_id, email, ip_hash, status: "waiting", attempts: 0,
+      state.alerts.set(alert_id, { alert_id, generation, product_id, email, ip_hash, status: sql.includes("'unconfirmed'") ? "unconfirmed" : "waiting", attempts: 0,
         next_attempt_at: new Date().toISOString(), created_at: new Date().toISOString(), claim: null });
       return [{ affectedRows: 1 }];
     }
     if (sql.startsWith("UPDATE restock_alerts")) {
+      if (sql.includes("AND status = 'unconfirmed'")) {
+        const a=state.alerts.get(args[0]);
+        if(a?.generation===args[1]&&a.status==='unconfirmed') a.status='waiting';
+        return [{affectedRows:1}];
+      }
       if (sql.includes("SET generation = ?")) {
         const a = state.alerts.get(args[2]);
-        if (!a || a.status !== "sent") return [{ affectedRows: 0 }];
-        Object.assign(a, { generation: args[0], ip_hash: args[1], status: "waiting", attempts: 0, claim: null,
+        if (!a || (!sql.includes("'unconfirmed'") && a.status !== "sent")) return [{ affectedRows: 0 }];
+        Object.assign(a, { generation: args[0], ip_hash: args[1], status: sql.includes("'unconfirmed'") ? "unconfirmed" : "waiting", attempts: 0, claim: null,
           next_attempt_at: new Date().toISOString(), sent_at: null, created_at: new Date().toISOString() });
         return [{ affectedRows: 1 }];
       }

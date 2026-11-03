@@ -8,6 +8,7 @@ export default function RestockSignup({ productId, onAvailable }: Props) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
   const [error, setError] = useState("");
   const [available, setAvailable] = useState(false);
   const controller = useRef<AbortController | null>(null);
@@ -36,6 +37,7 @@ export default function RestockSignup({ productId, onAvailable }: Props) {
         throw Error(result.error || "Unable to save your alert. Please try again.");
       }
       setSaved(true);
+      setConfirmationRequired(result.confirmationRequired === true);
       setEmail("");
     } catch (err) {
       if (!abort.signal.aborted)
@@ -50,8 +52,8 @@ export default function RestockSignup({ productId, onAvailable }: Props) {
     <section id="restock-alert" aria-label="Back-in-stock alert" className="mt-4 border-t border-white/10 pt-4 lg:mt-5 lg:pt-5">
       {saved ? (
         <div role="status" className="rounded-md border border-[#cbb79c]/30 bg-[#cbb79c]/5 p-4">
-          <p className="m-0 text-sm text-[#efe8dc]">You’re on the list.</p>
-          <p className="mb-0 mt-2 text-xs leading-relaxed text-[#c0b4a3]">We’ll email you once when this record is available again.</p>
+          <p className="m-0 text-sm text-[#efe8dc]">{confirmationRequired ? "Check your inbox." : "You’re on the list."}</p>
+          <p className="mb-0 mt-2 text-xs leading-relaxed text-[#c0b4a3]">{confirmationRequired ? "Open the confirmation email and confirm your stock alert. Once confirmed, we’ll email you when this record is available. If you already confirmed this record, your alert is active." : "We’ll email you once when this record is available again."}</p>
         </div>
       ) : (
         <>

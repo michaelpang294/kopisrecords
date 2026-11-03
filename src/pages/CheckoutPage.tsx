@@ -280,7 +280,7 @@ export default function CheckoutPage() {
             {order?.status === "payment_reported" || order?.status === "paid"
               ? "Order submitted"
               : order
-                ? "Your PayNow payment"
+                ? "Payment via Paynow"
                 : "Checkout"}
           </h1>
           {restoring ? (
@@ -305,10 +305,8 @@ export default function CheckoutPage() {
               <p className="mt-4 text-sm leading-relaxed text-[#c0b4a3]">
                 {order.status === "paid"
                   ? "Your payment has been confirmed."
-                  : "We’ve received your payment update. Please give us 1–2 hours to check the transfer manually."}{" "}
-                We’ll contact you using the phone number or Telegram you
-                provided to arrange collection or delivery. You don’t need to
-                pay again.
+                  : "Please give us 1–2 hours to check the transfer manually."}{" "}
+                We’ll contact you on email once verified. Please do not make payment again.
               </p>
               <p className="mt-6 break-all text-sm">
                 Order reference: <strong>{order.reference}</strong>
@@ -355,12 +353,6 @@ export default function CheckoutPage() {
                   Back to home
                 </Link>
               </div>
-              <a
-                href={`mailto:kopisrecords@gmail.com?subject=${encodeURIComponent(`Order ${order.reference}`)}`}
-                className="mt-4 inline-flex min-h-11 items-center text-sm text-[#cbb79c] underline underline-offset-4"
-              >
-                Contact us about this order ↗
-              </a>
             </section>
           ) : order ? (
             <div className="grid gap-5 md:grid-cols-2">
@@ -398,7 +390,7 @@ export default function CheckoutPage() {
                     </p>
                   )}
                 <p className="mt-4 text-sm">
-                  PayNow to <strong>91470168</strong>
+                  PayNow to <strong>91470168 (Michael)</strong>
                 </p>
                 {activeHold && !error && order.qr && (
                   <>
@@ -419,12 +411,10 @@ export default function CheckoutPage() {
                 <p className="mt-4 text-xs leading-relaxed text-[#c0b4a3]">
                   Scan with your banking app, or import the saved QR if
                   supported. Check the bank’s registered recipient and amount
-                  before paying. The shop label in the QR is not bank
-                  verification.
+                  before paying. 
                 </p>
               </section>
               <section className={panel}>
-                <OrderLink token={recoveryToken} />
                 <p className="mb-4 mt-5 text-xs text-[#cbb79c]">
                   {order.status === "payment_reported" ||
                   order.status === "paid"
@@ -469,21 +459,14 @@ export default function CheckoutPage() {
                     <dt>Total</dt>
                     <dd>{formatPrice(order.total)}</dd>
                   </div>
-                </dl>
-                <p className="mt-5 text-sm leading-relaxed text-[#c0b4a3]">
-                  Keep this order reference. Your records are held for 15
-                  minutes while you pay. Report payment before the timer ends to
-                  keep them held for manual verification. Payment is not
-                  automatically detected. Please don’t pay twice.
-                </p>
-                {activeHold && (
+                  {activeHold && (
                   <button
                     type="button"
                     onClick={reportPayment}
                     disabled={busy || Boolean(error)}
-                    className="mt-5 min-h-11 w-full rounded-md bg-[#cbb79c] p-3 text-sm text-[#15120f] disabled:opacity-50"
+                    className="mt-5 min-h-11 w-full rounded-md cursor-pointer bg-[#cbb79c] p-3 text-sm text-[#15120f] disabled:opacity-50"
                   >
-                    {busy ? "Submitting…" : "I’ve made payment"}
+                    {busy ? "Submitting…" : "I have made payment"}
                   </button>
                 )}
                 {!activeHold &&
@@ -497,12 +480,16 @@ export default function CheckoutPage() {
                       Start a fresh checkout (only if you haven’t paid)
                     </button>
                   )}
-                <a
-                  href={`mailto:kopisrecords@gmail.com?subject=${encodeURIComponent(`Order ${order.reference}`)}`}
-                  className="mt-4 inline-flex min-h-11 items-center text-sm text-[#cbb79c] underline"
-                >
-                  Contact us about this order ↗
-                </a>
+                  <OrderLink token={recoveryToken} />
+
+                </dl>
+                <p className="mt-5 text-sm leading-relaxed text-[#c0b4a3]">
+                  Keep this order reference. Your records are held for 15
+                  minutes while you pay. Report payment before the timer ends to
+                  keep them held for manual verification. Payment is not
+                  automatically detected. Please don’t pay twice.
+                </p>
+                
               </section>
             </div>
           ) : orderId ? (
@@ -574,18 +561,56 @@ export default function CheckoutPage() {
                   />
                 </label>
                 <p className="mb-5 text-xs leading-relaxed text-[#c0b4a3]">
-                  All three are required. We’ll email your payment updates and
-                  contact you on Telegram or by phone about collection or
-                  delivery.
+                  Please verify your contact details. We’ll email you on updates on your order. 
                 </p>
-                <fieldset>
+                
+                {method === "delivery" && (
+                  <div className="mt-5">
+                    <label className="text-sm">
+                      Address (including unit number)
+                      <textarea
+                        name="address"
+                        required
+                        autoComplete="street-address"
+                        maxLength={500}
+                        className={input}
+                      />
+                    </label>
+                    <label className="text-sm">
+                      Singapore postal code
+                      <input
+                        name="postal"
+                        required
+                        autoComplete="postal-code"
+                        inputMode="numeric"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        className={input}
+                      />
+                    </label>
+                  </div>
+                )}
+              </section>
+              <section className={panel}>
+                <h2 className="font-marcellus text-2xl">Your Cart</h2>
+                
+                <p className="mt-4 text-sm">
+                  {items.reduce((s, i) => s + i.quantity, 0)} item ·{" "}
+                  {method === "delivery" ? "$4.50 delivery" : "Self Collection"}
+                </p>
+                <p className="mt-4 text-xs leading-relaxed text-[#c0b4a3]">
+                  Your contact details are used to arrange this order. Payment
+                  is verified manually. Complete and report payment before the
+                  hold expires.
+                </p>
+                <fieldset className="mt-5">
                   <legend className="mb-3 font-marcellus text-xl">
                     Collection or delivery?
                   </legend>
                   {[
                     {
                       id: "collection",
-                      title: "Free collection",
+                      title: "Self Collection",
                       detail:
                         "Rocks Cafe · 98 Arab Street, Level 2, Back Alley Entrance (199794)",
                     },
@@ -615,50 +640,6 @@ export default function CheckoutPage() {
                     </label>
                   ))}
                 </fieldset>
-                {method === "delivery" && (
-                  <div className="mt-5">
-                    <label className="text-sm">
-                      Address (including unit number)
-                      <textarea
-                        name="address"
-                        required
-                        autoComplete="street-address"
-                        maxLength={500}
-                        className={input}
-                      />
-                    </label>
-                    <label className="text-sm">
-                      Singapore postal code
-                      <input
-                        name="postal"
-                        required
-                        autoComplete="postal-code"
-                        inputMode="numeric"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        className={input}
-                      />
-                    </label>
-                  </div>
-                )}
-              </section>
-              <section className={panel}>
-                <h2 className="font-marcellus text-2xl">Pay with PayNow</h2>
-                <p className="mt-4 text-sm leading-relaxed text-[#c0b4a3]">
-                  We’ll check current prices and stock, save your order, then
-                  show your final total and PayNow QR. Review the total before
-                  paying.
-                </p>
-                <p className="mt-4 text-sm">
-                  {items.reduce((s, i) => s + i.quantity, 0)} records ·{" "}
-                  {method === "delivery" ? "$4.50 delivery" : "Free collection"}
-                </p>
-                <p className="mt-4 text-xs leading-relaxed text-[#c0b4a3]">
-                  Your contact details are used to arrange this order. Payment
-                  is verified manually. Records are held for 15 minutes after
-                  generating your QR. Complete and report payment before the
-                  hold expires.
-                </p>
                 {error && (
                   <p role="alert" className="mt-4 text-sm text-[#f0b8a8]">
                     {error}
@@ -666,7 +647,7 @@ export default function CheckoutPage() {
                 )}
                 <button
                   disabled={busy}
-                  className="mt-6 min-h-11 w-full rounded-md bg-[#cbb79c] p-3 text-sm text-[#15120f] hover:bg-[#dfcdb3] disabled:opacity-50"
+                  className="mt-6 min-h-11 w-full rounded-md bg-[#cbb79c] p-3 text-sm text-[#15120f] hover:bg-[#dfcdb3] disabled:opacity-50 cursor-pointer"
                 >
                   {busy ? "Checking your records…" : "Generate PayNow QR ↗"}
                 </button>

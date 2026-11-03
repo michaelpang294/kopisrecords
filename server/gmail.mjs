@@ -15,6 +15,10 @@ export function createGmailSender(env = process.env) {
     : null;
   return {
     ready: Boolean(transport),
+    async verify() {
+      if (!transport) throw Object.assign(new Error("Gmail is not configured."), { code: "GMAIL_NOT_CONFIGURED" });
+      await transport.verify();
+    },
     async send(message) {
       if (!transport)
         throw Object.assign(new Error("Gmail is not configured."), {

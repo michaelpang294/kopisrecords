@@ -17,10 +17,10 @@ export default function BlogPage() {
             <p className={`${type.eyebrow} mb-4 text-[#cbb79c]`}>
               Notes from behind the crates
             </p>
-            <h1 className={`${type.pageTitle} mb-6`}>The Kopi’s blog.</h1>
-            <p className="max-w-[580px] text-base leading-8 text-[#c0b4a3] sm:text-lg">
-              Shop stories, records on repeat, and conversations that went on a
-              little longer than expected.
+            <h1 className={`${type.pageTitle} mb-6`}>Grab a kopi, stay for a story</h1>
+            <p className="max-w-[700px] text-base leading-8 text-[#c0b4a3] sm:text-lg">
+              Life running the shop, our records on repeat,
+              and the stories we pick up along the way.
             </p>
           </header>
           <div className="space-y-10">
@@ -42,12 +42,11 @@ export default function BlogPage() {
                       className="relative flex aspect-[4/3] flex-col justify-between overflow-hidden border-b border-white/10 bg-[#30261d] p-7 md:border-r md:border-b-0 sm:p-10"
                     >
                       <span className="text-xs uppercase tracking-[.22em] text-[#cbb79c]">
-                        Kopi’s Records · Shop diary
+                        Blog Post
                       </span>
                       <div className="absolute -right-14 -bottom-16 h-64 w-64 rounded-full border border-[#cbb79c33] shadow-[0_0_0_20px_#cbb79c08,0_0_0_40px_#cbb79c08,0_0_0_60px_#cbb79c08]" />
                       <span className="relative font-marcellus text-5xl leading-[1.15] sm:text-6xl">
-                        A little shop.
-                        <br />A lot of stories.
+                        {post.title}
                       </span>
                       <span className="relative text-xs tracking-[.18em] text-[#c0b4a3]">
                         NO. {String(index + 1).padStart(2, "0")}
@@ -55,19 +54,14 @@ export default function BlogPage() {
                     </div>
                   )}
                   <div className="flex flex-col justify-center p-6 sm:p-10 lg:p-12">
-                    <p className={`${type.eyebrow} mb-5 text-[#cbb79c]`}>
-                      {post.category}
-                    </p>
-                    <h2 className="mb-5 font-marcellus text-3xl leading-tight sm:text-4xl">
-                      {post.title}
-                    </h2>
-                    <p className="mb-7 text-sm leading-7 text-[#c0b4a3] sm:text-base">
-                      {post.excerpt}
-                    </p>
                     <p className="mb-6 text-xs text-[#c0b4a3]">
                       By {post.author} <span aria-hidden="true">·</span>{" "}
                       {readingMinutes(post)} min read
                     </p>
+                    <p className="mb-7 text-sm leading-7 text-[#c0b4a3] sm:text-base">
+                      {post.excerpt}
+                    </p>
+                    
                     <span className="flex min-h-11 items-center justify-between gap-4 border-t border-white/15 pt-4 text-sm text-[#cbb79c]">
                       Read the story{" "}
                       <ArrowUpRight size={20} aria-hidden="true" />

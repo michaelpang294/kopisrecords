@@ -1,6 +1,6 @@
 import useUnsavedChanges from "../admin/useUnsavedChanges";
 import { useEffect, useState } from "react";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { adminJson } from "../admin/adminApi";
 import { adminButton, adminField, adminPanel } from "../admin/productForm";
 export default function StockLevelsSection() {

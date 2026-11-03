@@ -11,10 +11,16 @@ export function installAdminAuth(
     adminPasswordHash = process.env.ADMIN_PASSWORD_HASH,
     secureCookies = process.env.NODE_ENV === "production",
     sessionMs = 8 * 60 * 60 * 1000,
+    sessionStore,
   } = {},
 ) {
   const sessions = new Map(),
     attempts = new Map();
+  const store = sessionStore || {
+    get: (key) => sessions.get(key),
+    set: (key, expiry) => sessions.set(key, expiry),
+    delete: (key) => sessions.delete(key),
+  };
   const cookie = "kopis_admin_session",
     opts = {
       httpOnly: true,
@@ -22,7 +28,7 @@ export function installAdminAuth(
       secure: secureCookies,
       path: "/api",
     };
-  const digest = (token) => createHash("sha256").update(token).digest("hex");
+  const digest = (token) => createHash("sha256").update(`${adminPasswordHash}\0${token}`).digest("hex");
   function token(req) {
     const match = (req.headers.cookie || "")
       .split(";")
@@ -30,11 +36,11 @@ export function installAdminAuth(
       .find((p) => p.startsWith(cookie + "="));
     return match?.slice(cookie.length + 1) || "";
   }
-  function valid(req) {
+  async function valid(req) {
     const key = digest(token(req)),
-      expiry = sessions.get(key);
+      expiry = await store.get(key);
     if (!expiry || expiry <= Date.now()) {
-      sessions.delete(key);
+      await store.delete(key);
       return false;
     }
     return true;
@@ -79,9 +85,9 @@ export function installAdminAuth(
       if (!timingSafeEqual(actual, Buffer.from(expected, "hex")))
         return res.status(401).json({ error: "Incorrect password." });
       attempts.delete(req.ip);
-      sessions.delete(digest(token(req)));
+      await store.delete(digest(token(req)));
       const value = randomBytes(32).toString("hex");
-      sessions.set(digest(value), now + sessionMs);
+      await store.set(digest(value), now + sessionMs);
       res
         .cookie(cookie, value, { ...opts, maxAge: sessionMs })
         .json({ authenticated: true });
@@ -89,16 +95,16 @@ export function installAdminAuth(
       next(e);
     }
   });
-  app.get("/api/admin/session", (req, res) => {
-    const authenticated = valid(req);
+  app.get("/api/admin/session", async (req, res) => {
+    const authenticated = await valid(req);
     res.status(authenticated ? 200 : 401).json({ authenticated });
   });
-  app.post("/api/admin/logout", header, (req, res) => {
-    sessions.delete(digest(token(req)));
+  app.post("/api/admin/logout", header, async (req, res) => {
+    await store.delete(digest(token(req)));
     res.clearCookie(cookie, opts).json({ authenticated: false });
   });
-  return function requireAdmin(req, res, next) {
-    if (!valid(req))
+  return async function requireAdmin(req, res, next) {
+    if (!(await valid(req)))
       return res
         .status(401)
         .json({ error: "Your admin session has ended. Please sign in." });

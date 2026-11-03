@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import type { CartItem, CartResult } from "./cartStorage";
 
 export type CartContextValue = {

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
-import type { Product } from "../scripts/picksOfTheWeek";
+import type { Product } from "../scripts/product";
 import { typography as type } from "../styles/typography";
 import { useCart } from "../cart/CartContext";
 import { formatPrice, getPriceCents, getStock } from "../cart/cartStorage";
@@ -416,19 +416,18 @@ export default function CartPage() {
               className="mx-auto mb-5 text-[#cbb79c]"
             />
             <h2 className={`${type.itemTitle} m-0 mb-3`}>
-              A little room for your next favourite.
+              A little empty no?
             </h2>
             <p
               className={`${type.small} mx-auto my-0 max-w-[340px] text-[#c0b4a3]`}
             >
-              Your cart is empty. Have a dig through the crates and find
-              something for your turntable.
+              Your cart is empty. Have a dig through our crates :)
             </p>
             <Link
               to="/shop"
               className={`${type.ui} ${focus} mt-6 inline-flex min-h-11 items-center gap-5 rounded-md bg-[#cbb79c] px-5 py-3 text-[#15120f] hover:bg-[#dfcdb3]`}
             >
-              Shop the records
+              Shop all
               <ArrowRight size={16} aria-hidden="true" />
             </Link>
           </section>

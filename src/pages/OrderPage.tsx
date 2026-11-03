@@ -122,7 +122,7 @@ export default function OrderPage() {
   const labels: Record<string, string> = {
     awaiting_payment_confirmation: "Your records are on hold",
     payment_reported: "Payment update received",
-    paid: "Payment confirmed",
+    paid: "Payment confirmed. We are packing your order.",
     ready_for_collection: "Ready for collection",
     dispatched: "Your records are on their way",
     completed: "Order completed",
@@ -252,15 +252,22 @@ export default function OrderPage() {
                 {order.fulfilment === "collection" &&
                   order.collectionNumber &&
                   ["ready_for_collection", "completed"].includes(order.status) && (
-                    <div className="mt-5 rounded-lg border border-[#cbb79c]/40 bg-[#cbb79c]/10 p-4">
-                      <p className="text-xs uppercase tracking-wider text-[#c0b4a3]">
-                        Collection / bag number
-                      </p>
-                      <p className="mt-2 text-4xl text-[#efe8dc]">
-                        #{order.collectionNumber}
+                    <div>
+                      <div className="mt-5 rounded-lg border border-[#cbb79c]/40 bg-[#cbb79c]/10 p-4">
+                        <p className="text-xs uppercase tracking-wider text-[#c0b4a3]">
+                          Collection / bag number
+                        </p>
+                        <p className="mt-2 text-4xl text-[#efe8dc]">
+                          #{order.collectionNumber}
+                        </p>
+                      </div>
+                      <p className="mt-4 text-sm leading-relaxed text-[#c0b4a3]">
+                        Rocks Cafe, 98 Arab Street, Level 2 Back Alley Entrance, Singapore 199794. <br />
+                        Open 2:30–11pm Tuesday–Sunday. 
                       </p>
                     </div>
                   )}
+                  
                 {reportError && (
                   <p role="alert" className="mt-4 text-sm text-[#f0b8a8]">
                     {reportError}
@@ -313,19 +320,13 @@ export default function OrderPage() {
                     <dd>{formatPrice(order.total)}</dd>
                   </div>
                 </dl>
-                {order.fulfilment === "collection" && (
+                {order.fulfilment === "collection" && order.status === "paid" && (
                   <p className="mt-5 text-xs leading-relaxed text-[#c0b4a3]">
-                    Collection at Rocks Cafe, 98 Arab Street, Level 2, Back
-                    Alley Entrance, Singapore 199794. Wait for the shop to
-                    confirm arrangements.
+                    Collection are at Rocks Cafe. Wait for the shop to
+                    confirm arrangements before making your way down. <strong>We will email you once your order is ready for collection.</strong>
                   </p>
                 )}
-                <a
-                  href={`mailto:kopisrecords@gmail.com?subject=${encodeURIComponent(`Order ${order.reference}`)}`}
-                  className="mt-5 inline-flex min-h-11 items-center text-sm text-[#cbb79c] underline"
-                >
-                  Contact us about this order ↗
-                </a>
+                
                 <Link
                   to="/shop"
                   className="mt-4 flex min-h-12 items-center justify-center rounded-lg border border-white/15 px-4 text-sm text-[#efe8dc]"
