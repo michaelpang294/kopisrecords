@@ -80,12 +80,6 @@ export default function StoreHeader() {
             Request a record
           </Link>
           <Link
-            to="/orders"
-            className={`${navigationLink} min-[641px]:hidden min-[1001px]:block`}
-          >
-            Recent orders
-          </Link>
-          <Link
             to="/cart"
             aria-label={`Cart, ${itemCount} ${itemCount === 1 ? "item" : "items"}`}
             aria-current={location.pathname === "/cart" ? "page" : undefined}

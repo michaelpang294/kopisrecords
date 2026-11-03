@@ -7,8 +7,8 @@ import { formatPrice } from "../cart/cartStorage";
 import { useCart } from "../cart/CartContext";
 import OrderLink from "../orders/OrderLink";
 import {
-  recentOrders,
-  rememberOrder,
+  checkoutIdForToken,
+  clearActiveCheckout,
   validToken,
   type RecoveredOrder,
 } from "../orders/orderRecovery";
@@ -53,7 +53,6 @@ export default function OrderPage() {
         offset.current = Date.parse(value.serverTime) - Date.now();
         setNow(Date.now() + offset.current);
         setResult({ token, order: value });
-        rememberOrder(token, value);
       } catch (err) {
         if (active && !controller.signal.aborted)
           setResult({
@@ -104,17 +103,11 @@ export default function OrderPage() {
       if (!response.ok) throw Error(value.error || "Unable to report payment.");
       reported.current = token;
       setResult({ token, order: value });
-      rememberOrder(token, value);
       // Only this browser's own checkout can settle its cart. Opening a recovery link never does.
-      const owned = recentOrders().find(
-        (value) => value.token === token,
-      )?.orderId;
-      if (owned) completeOrder(owned, value.items);
-      try {
-        if (owned && sessionStorage.getItem("kopis-checkout-hold") === owned)
-          sessionStorage.removeItem("kopis-checkout-hold");
-      } catch {
-        /* No storage access. */
+      const owned = checkoutIdForToken(token);
+      if (owned) {
+        completeOrder(owned, value.items);
+        clearActiveCheckout(owned);
       }
     } catch (err) {
       setReportError(
@@ -161,10 +154,10 @@ export default function OrderPage() {
       >
         <div className="mx-auto max-w-[960px]">
           <Link
-            to="/orders"
+            to="/shop"
             className="mb-5 inline-flex min-h-11 items-center text-sm text-[#cbb79c] underline"
           >
-            ← Recent orders
+            ← Back to shop
           </Link>
           <p className="mb-2 text-[10px] uppercase tracking-[.18em] text-[#cbb79c]">
             Your next rotation

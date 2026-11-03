@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useLayoutEffect } from "react";
 import StoreHeader from "./components/StoreHeader";
 import HomePage from "./pages/HomePage";
@@ -10,10 +10,13 @@ import CartPage from "./pages/CartPage";
 
 import CheckoutPage from "./pages/CheckoutPage";
 import OrderPage from "./pages/OrderPage";
-import RecentOrdersPage from "./pages/RecentOrdersPage";
+import { discardLegacyOrderHistory } from "./orders/orderRecovery";
 
 export default function App() {
   const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    discardLegacyOrderHistory();
+  }, []);
 
   useLayoutEffect(() => {
     window.history.scrollRestoration = "manual";
@@ -40,7 +43,7 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order" element={<OrderPage />} />
-        <Route path="/orders" element={<RecentOrdersPage />} />
+        <Route path="/orders" element={<Navigate to="/shop" replace />} />
 
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/:action" element={<AdminPage />} />

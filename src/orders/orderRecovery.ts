@@ -17,73 +17,50 @@ export type RecoveredOrder = {
     price: number;
   }[];
 };
-export type RecentOrder = {
-  token: string;
-  reference: string;
-  status: string;
-  total?: number;
-  savedAt: string;
-  orderId?: string;
-};
-const key = "kopisrecords-recent-orders",
-  eventName = "kopis-recent-orders-updated";
-let memory: RecentOrder[] = [];
-let memoryOnly = false;
+// Keep only the checkout in the current tab, never an order-history list.
+type ActiveCheckout = { id: string; token: string };
+const activeKey = "kopis-checkout-hold";
+let memory: ActiveCheckout | null = null;
 export const validToken = (token: string) => /^[a-f0-9]{64}$/.test(token);
-export function recentOrders(): RecentOrder[] {
-  if (memoryOnly) return memory;
+const validId = (id: string) =>
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id);
+export function activeCheckout(): ActiveCheckout | null {
   try {
-    const data: unknown = JSON.parse(localStorage.getItem(key) || "[]");
-    if (Array.isArray(data))
-      return data
-        .filter(
-          (value): value is RecentOrder =>
-            !!value &&
-            typeof value === "object" &&
-            validToken(value.token) &&
-            typeof value.reference === "string" &&
-            typeof value.status === "string" &&
-            typeof value.savedAt === "string",
-        )
-        .slice(0, 20);
+    const raw = sessionStorage.getItem(activeKey);
+    if (!raw) return memory;
+    // An active checkout from the previous frontend can still be refreshed.
+    if (validId(raw)) return { id: raw, token: "" };
+    const value = JSON.parse(raw);
+    if (value && validId(value.id) && validToken(value.token)) return value;
   } catch {
-    /* Use in-memory links if storage is unavailable. */
+    /* Use this tab's in-memory state if storage is blocked. */
   }
   return memory;
 }
-function save(values: RecentOrder[]) {
-  memory = values;
+export function setActiveCheckout(id: string, token: string) {
+  if (!validId(id) || !validToken(token)) return;
+  memory = { id, token };
   try {
-    localStorage.setItem(key, JSON.stringify(values));
+    sessionStorage.setItem(activeKey, JSON.stringify(memory));
   } catch {
-    memoryOnly = true; /* Copy the link if this browser cannot remember it. */
+    /* Keep this tab open. */
   }
-  window.dispatchEvent(new window.Event(eventName));
 }
-export function rememberOrder(
-  token: string,
-  order: Pick<RecoveredOrder, "reference" | "status" | "total">,
-  orderId?: string,
-) {
-  if (!validToken(token)) return;
-  const existing = recentOrders(),
-    previous = existing.find((value) => value.token === token);
-  save(
-    [
-      {
-        token,
-        reference: order.reference,
-        status: order.status,
-        total: order.total,
-        savedAt: previous?.savedAt || new Date().toISOString(),
-        orderId: orderId || previous?.orderId,
-      },
-      ...existing.filter((value) => value.token !== token),
-    ].slice(0, 20),
-  );
+export function clearActiveCheckout(id?: string) {
+  if (id && activeCheckout()?.id !== id) return;
+  memory = null;
+  try {
+    sessionStorage.removeItem(activeKey);
+  } catch {
+    /* No storage access. */
+  }
 }
-export function removeRecent(token: string) {
-  save(recentOrders().filter((value) => value.token !== token));
+export function discardLegacyOrderHistory() {
+  try {
+    localStorage.removeItem("kopisrecords-recent-orders");
+  } catch {
+    /* No storage access. */
+  }
 }
 export function newRecoveryToken() {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
@@ -101,30 +78,21 @@ export function newCheckoutId() {
   return `${text.slice(0, 8)}-${text.slice(8, 12)}-${text.slice(12, 16)}-${text.slice(16, 20)}-${text.slice(20)}`;
 }
 export function tokenForOrder(id: string) {
-  return recentOrders().find((value) => value.orderId === id)?.token || "";
+  const current = activeCheckout();
+  return current?.id === id ? current.token : "";
 }
 export function prepareRecovery(id: string) {
-  const found = tokenForOrder(id);
-  if (found) return found;
-  const token = newRecoveryToken();
-  rememberOrder(
-    token,
-    { reference: "Checkout in progress", status: "creating", total: 0 },
-    id,
-  );
+  const token = tokenForOrder(id) || newRecoveryToken();
+  setActiveCheckout(id, token);
   return token;
+}
+export function checkoutIdForToken(token: string) {
+  const current = activeCheckout();
+  return current?.token === token ? current.id : "";
 }
 export function recoveryPath(token: string) {
   return `/order#token=${token}`;
 }
 export function recoveryUrl(token: string) {
   return window.location.origin + recoveryPath(token);
-}
-export function subscribeOrders(fn: () => void) {
-  window.addEventListener("storage", fn);
-  window.addEventListener(eventName, fn);
-  return () => {
-    window.removeEventListener("storage", fn);
-    window.removeEventListener(eventName, fn);
-  };
 }

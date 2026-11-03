@@ -3,9 +3,10 @@ import OrderLink from "../orders/OrderLink";
 import {
   newCheckoutId,
   prepareRecovery,
-  rememberOrder,
+  activeCheckout,
+  setActiveCheckout,
+  clearActiveCheckout,
   tokenForOrder,
-  removeRecent,
 } from "../orders/orderRecovery";
 import {
   useCallback,
@@ -47,13 +48,7 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const request = useRef({ signature: "", id: "" });
-  const [orderId, setOrderId] = useState(() => {
-    try {
-      return sessionStorage.getItem("kopis-checkout-hold") || "";
-    } catch {
-      return "";
-    }
-  });
+  const [orderId, setOrderId] = useState(() => activeCheckout()?.id || "");
   const [restoring, setRestoring] = useState(Boolean(orderId));
   const [recoveryToken, setRecoveryToken] = useState(() =>
     tokenForOrder(orderId),
@@ -73,14 +68,14 @@ export default function CheckoutPage() {
     const token = value.recoveryToken || tokenForOrder(id);
     if (token) {
       setRecoveryToken(token);
-      rememberOrder(token, value, id);
+      setActiveCheckout(id, token);
     }
 
     if (completed) {
       finishedId.current = id;
       completeOrderRef.current(id, value.items);
       try {
-        sessionStorage.removeItem("kopis-checkout-hold");
+        clearActiveCheckout();
       } catch {
         /* Storage may be unavailable. */
       }
@@ -186,7 +181,7 @@ export default function CheckoutPage() {
     request.current = { signature: "", id: "" };
     setError("");
     try {
-      sessionStorage.removeItem("kopis-checkout-hold");
+      clearActiveCheckout();
     } catch {
       /* Storage may be unavailable. */
     }
@@ -209,7 +204,7 @@ export default function CheckoutPage() {
       request.current = { signature, id: newCheckoutId() };
     const token = prepareRecovery(request.current.id);
     try {
-      sessionStorage.setItem("kopis-checkout-hold", request.current.id);
+      setActiveCheckout(request.current.id, token);
     } catch {
       /* Continue without refresh recovery if storage is blocked. */
     }
@@ -228,9 +223,9 @@ export default function CheckoutPage() {
       const result = await res.json();
       if (!res.ok) {
         if (res.status === 400) {
-          removeRecent(token);
+          clearActiveCheckout(request.current.id);
           try {
-            sessionStorage.removeItem("kopis-checkout-hold");
+            clearActiveCheckout();
           } catch {
             /* Storage unavailable. */
           }
@@ -247,7 +242,7 @@ export default function CheckoutPage() {
         return;
       setOrderId(id);
       try {
-        sessionStorage.setItem("kopis-checkout-hold", request.current.id);
+        setActiveCheckout(request.current.id, token);
       } catch {
         /* Keep this tab open if storage is blocked. */
       }
@@ -275,9 +270,6 @@ export default function CheckoutPage() {
               Cart
             </Link>{" "}
             / Checkout{" "}
-            <Link to="/orders" className="ml-4 text-[#cbb79c] underline">
-              Recent orders
-            </Link>
           </nav>
           <p className="mb-2 text-[10px] uppercase tracking-[.18em] text-[#cbb79c]">
             Nearly on your turntable

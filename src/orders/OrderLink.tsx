@@ -19,8 +19,8 @@ export default function OrderLink({ token }: { token: string }) {
     <div className="mt-5 rounded-lg border border-[#cbb79c]/25 bg-[#15120f]/60 p-4">
       <p className="text-sm text-[#efe8dc]">Keep your order link</p>
       <p className="mt-2 text-xs leading-relaxed text-[#c0b4a3]">
-        Reopen your payment or check your order later. Anyone with this link can
-        view the order summary.
+        Copy this link before closing the tab. You’ll need it to return to your
+        order. Anyone with this link can view the order summary.
       </p>
       <label className="mt-3 block text-xs text-[#c0b4a3]">
         Private order link

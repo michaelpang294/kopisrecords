@@ -38,13 +38,19 @@ function resolveLine(item: CartItem, product: Product | undefined): CartLine {
   const stock = getStock(product?.stock);
   const unitPrice = getPriceCents(product?.price);
   const total = unitPrice === null ? null : unitPrice * item.quantity;
-  const linePrice = total !== null && Number.isSafeInteger(total) ? total : null;
+  const linePrice =
+    total !== null && Number.isSafeInteger(total) ? total : null;
   let problem = "";
-  if (!product) problem = "This record is no longer listed. Please remove it from your cart.";
+  if (!product)
+    problem =
+      "This record is no longer listed. Please remove it from your cart.";
   else if (stock < 1)
-    problem = "This record is currently sold out. Please remove it from your cart.";
-  else if (item.quantity > stock) problem = `Only ${stock} available. Please reduce the quantity.`;
-  else if (linePrice === null) problem = "A current price isn’t available for this record.";
+    problem =
+      "This record is currently sold out. Please remove it from your cart.";
+  else if (item.quantity > stock)
+    problem = `Only ${stock} available. Please reduce the quantity.`;
+  else if (linePrice === null)
+    problem = "A current price isn’t available for this record.";
   return { item, product, stock, unitPrice, linePrice, problem };
 }
 
@@ -80,7 +86,8 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
     draft: String(item.quantity),
     error: "",
   });
-  const draft = edit.quantity === item.quantity ? edit.draft : String(item.quantity);
+  const draft =
+    edit.quantity === item.quantity ? edit.draft : String(item.quantity);
   const error = edit.quantity === item.quantity ? edit.error : "";
   const title = product?.title || "Unavailable record";
   const disabled = !product || stock < 1;
@@ -98,7 +105,11 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
   function commitDraft() {
     const amount = Number(draft);
     if (amount === item.quantity) {
-      setEdit({ quantity: item.quantity, draft: String(item.quantity), error: "" });
+      setEdit({
+        quantity: item.quantity,
+        draft: String(item.quantity),
+        error: "",
+      });
       return;
     }
     changeQuantity(amount);
@@ -111,8 +122,14 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
     >
       <div className="min-w-0">
         {product ? (
-          <Link to={`/shop/product/${item.id}`} className={`${focus} block rounded-sm`}>
-            <CartCover key={`${item.id}-${product.cover_image}`} product={product} />
+          <Link
+            to={`/shop/product/${item.id}`}
+            className={`${focus} block rounded-sm`}
+          >
+            <CartCover
+              key={`${item.id}-${product.cover_image}`}
+              product={product}
+            />
           </Link>
         ) : (
           <CartCover product={undefined} />
@@ -123,7 +140,9 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             {product && (
-              <p className={`${type.meta} m-0 mb-1 text-[#c0b4a3] [overflow-wrap:anywhere]`}>
+              <p
+                className={`${type.meta} m-0 mb-1 text-[#c0b4a3] [overflow-wrap:anywhere]`}
+              >
                 {product.artist}
               </p>
             )}
@@ -131,7 +150,10 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
               className={`${type.itemTitle} m-0 mb-1 text-[#efe8dc] [overflow-wrap:anywhere] max-sm:text-base`}
             >
               {product ? (
-                <Link to={`/shop/product/${item.id}`} className={`${focus} hover:text-[#cbb79c]`}>
+                <Link
+                  to={`/shop/product/${item.id}`}
+                  className={`${focus} hover:text-[#cbb79c]`}
+                >
                   {title}
                 </Link>
               ) : (
@@ -139,7 +161,9 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
               )}
             </h2>
             {product && (
-              <p className={`${type.meta} m-0 text-[#c0b4a3] [overflow-wrap:anywhere]`}>
+              <p
+                className={`${type.meta} m-0 text-[#c0b4a3] [overflow-wrap:anywhere]`}
+              >
                 {[product.medium, product.variant].filter(Boolean).join(" · ")}
               </p>
             )}
@@ -189,7 +213,11 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
             disabled={disabled}
             value={draft}
             onChange={(event) =>
-              setEdit({ quantity: item.quantity, draft: event.target.value, error: "" })
+              setEdit({
+                quantity: item.quantity,
+                draft: event.target.value,
+                error: "",
+              })
             }
             onBlur={commitDraft}
             onKeyDown={(event) => {
@@ -218,7 +246,11 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
       </div>
 
       {error && (
-        <p id={errorId} role="alert" className={`${type.meta} col-span-2 m-0 text-[#efe8dc]`}>
+        <p
+          id={errorId}
+          role="alert"
+          className={`${type.meta} col-span-2 m-0 text-[#efe8dc]`}
+        >
           {error}
         </p>
       )}
@@ -226,7 +258,11 @@ function CartRow({ line, onRemove }: { line: CartLine; onRemove: () => void }) {
         <div
           className={`${type.meta} col-span-2 flex items-start gap-2 rounded-md border border-[#cbb79c]/25 bg-[#15120f]/60 p-3 text-[#cbb79c]`}
         >
-          <TriangleAlert size={15} aria-hidden="true" className="mt-0.5 shrink-0" />
+          <TriangleAlert
+            size={15}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+          />
           <div>
             <p className="m-0">{problem}</p>
             {product && stock > 0 && item.quantity > stock && (
@@ -292,19 +328,27 @@ export default function CartPage() {
     return () => window.removeEventListener("focus", refresh);
   }, [hasItems]);
 
-  const catalogue = new Map(products.map((product) => [Number(product.id), product]));
+  const catalogue = new Map(
+    products.map((product) => [Number(product.id), product]),
+  );
   const lines = items.map((item) => resolveLine(item, catalogue.get(item.id)));
-  const subtotalValue = lines.reduce((sum, line) => sum + (line.linePrice ?? 0), 0);
+  const subtotalValue = lines.reduce(
+    (sum, line) => sum + (line.linePrice ?? 0),
+    0,
+  );
   const subtotal =
     status === "ready" &&
     lines.every((line) => line.linePrice !== null) &&
     Number.isSafeInteger(subtotalValue)
       ? subtotalValue
       : null;
-  const problems = status === "ready" ? lines.filter((line) => line.problem).length : 0;
+  const problems =
+    status === "ready" ? lines.filter((line) => line.problem).length : 0;
 
   return (
-    <div className={`${type.body} relative isolate min-h-screen bg-[#15120f] text-[#efe8dc]`}>
+    <div
+      className={`${type.body} relative isolate min-h-screen bg-[#15120f] text-[#efe8dc]`}
+    >
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
@@ -325,15 +369,19 @@ export default function CartPage() {
           <span aria-current="page" className="text-[#efe8dc]">
             Cart
           </span>
-          <Link to="/orders" className={`${focus} ml-auto inline-flex min-h-11 items-center text-[#cbb79c] underline underline-offset-4`}>Recent orders</Link>
         </nav>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-4 lg:mb-8">
           <div>
-            <p className={`${type.eyebrow} m-0 mb-2 text-[#cbb79c]`}>From our crates to yours</p>
-            <h1 className={`${type.sectionTitle} m-0 max-lg:text-[28px]`}>Your cart</h1>
+            <p className={`${type.eyebrow} m-0 mb-2 text-[#cbb79c]`}>
+              From our crates to yours
+            </p>
+            <h1 className={`${type.sectionTitle} m-0 max-lg:text-[28px]`}>
+              Your cart
+            </h1>
             <p className={`${type.small} m-0 mt-2 text-[#c0b4a3]`}>
               {itemCount} {itemCount === 1 ? "item" : "items"}
-              {hasItems && ` · ${items.length} ${items.length === 1 ? "title" : "titles"}`}
+              {hasItems &&
+                ` · ${items.length} ${items.length === 1 ? "title" : "titles"}`}
             </p>
           </div>
           {hasItems && (
@@ -367,10 +415,14 @@ export default function CartPage() {
               aria-hidden="true"
               className="mx-auto mb-5 text-[#cbb79c]"
             />
-            <h2 className={`${type.itemTitle} m-0 mb-3`}>A little room for your next favourite.</h2>
-            <p className={`${type.small} mx-auto my-0 max-w-[340px] text-[#c0b4a3]`}>
-              Your cart is empty. Have a dig through the crates and find something for your
-              turntable.
+            <h2 className={`${type.itemTitle} m-0 mb-3`}>
+              A little room for your next favourite.
+            </h2>
+            <p
+              className={`${type.small} mx-auto my-0 max-w-[340px] text-[#c0b4a3]`}
+            >
+              Your cart is empty. Have a dig through the crates and find
+              something for your turntable.
             </p>
             <Link
               to="/shop"
@@ -385,10 +437,12 @@ export default function CartPage() {
             role="alert"
             className="rounded-md border border-white/10 bg-[#211b16] p-6 text-center sm:p-10"
           >
-            <h2 className={`${type.itemTitle} m-0 mb-3`}>We couldn’t check the crates.</h2>
+            <h2 className={`${type.itemTitle} m-0 mb-3`}>
+              We couldn’t check the crates.
+            </h2>
             <p className={`${type.small} m-0 text-[#c0b4a3]`}>
-              Your selected items are still in your cart. Try again to load current prices and
-              availability.
+              Your selected items are still in your cart. Try again to load
+              current prices and availability.
             </p>
             <button
               type="button"
@@ -446,7 +500,9 @@ export default function CartPage() {
                     line={line}
                     onRemove={() => {
                       removeItem(line.item.id);
-                      setAnnouncement(`${line.product?.title || "Record"} removed from cart.`);
+                      setAnnouncement(
+                        `${line.product?.title || "Record"} removed from cart.`,
+                      );
                     }}
                   />
                 ))}
@@ -457,10 +513,15 @@ export default function CartPage() {
               aria-labelledby="cart-summary-title"
               className="rounded-md border border-white/10 bg-[#211b16]/95 p-5 sm:p-6 lg:sticky lg:top-[105px]"
             >
-              <h2 id="cart-summary-title" className={`${type.itemTitle} m-0 mb-5`}>
+              <h2
+                id="cart-summary-title"
+                className={`${type.itemTitle} m-0 mb-5`}
+              >
                 Cart summary
               </h2>
-              <div className={`${type.small} mb-4 flex justify-between gap-4 text-[#c0b4a3]`}>
+              <div
+                className={`${type.small} mb-4 flex justify-between gap-4 text-[#c0b4a3]`}
+              >
                 <span>
                   {itemCount} {itemCount === 1 ? "item" : "items"}
                 </span>
@@ -476,19 +537,23 @@ export default function CartPage() {
                 </p>
               </div>
               {problems > 0 && (
-                <p role="status" className={`${type.small} mb-0 mt-4 text-[#cbb79c]`}>
-                  {problems} {problems === 1 ? "record needs" : "records need"} attention. Review
-                  the highlighted items in your cart.
+                <p
+                  role="status"
+                  className={`${type.small} mb-0 mt-4 text-[#cbb79c]`}
+                >
+                  {problems} {problems === 1 ? "record needs" : "records need"}{" "}
+                  attention. Review the highlighted items in your cart.
                 </p>
               )}
               {subtotal === null && (
                 <p className={`${type.meta} mb-0 mt-3 text-[#c0b4a3]`}>
-                  Remove records without a current price to calculate your subtotal.
+                  Remove records without a current price to calculate your
+                  subtotal.
                 </p>
               )}
               <p className={`${type.meta} mb-0 mt-4 text-[#c0b4a3]`}>
-                Delivery is not included in this subtotal. Adding records to your cart does not
-                reserve stock.
+                Delivery is not included in this subtotal. Adding records to
+                your cart does not reserve stock.
               </p>
               <Link
                 to="/checkout"
