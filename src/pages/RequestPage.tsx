@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { API } from "../api";
+import { newCheckoutId } from "../orders/orderRecovery";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import Footer from "../footer";
@@ -9,31 +11,71 @@ const inputClass =
 export default function RequestRecordPage() {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  const [email, setEmail] = useState("");
   const [record, setRecord] = useState("");
   const [notes, setNotes] = useState("");
-  const [draftOpened, setDraftOpened] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [error, setError] = useState("");
+  const [received, setReceived] = useState<{
+    emailStatus: "sent" | "failed" | "sending";
+    message?: string;
+  } | null>(null);
+  const request = useRef({ signature: "", id: "" });
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const subject = `Record request: ${record.trim()}`;
-    const body = [
-      "Hi Kopi’s Records!",
-      "",
-      "I’m looking for a record:",
-      "",
-      `Name: ${name.trim()}`,
-      `Phone / Telegram: ${contact.trim()}`,
-      `Artist / Record: ${record.trim()}`,
-      `Extra details: ${notes.trim() || "None"}`,
-    ].join("\n");
-
-    window.location.href =
-      `mailto:kopisrecords@gmail.com` +
-      `?subject=${encodeURIComponent(subject)}` +
-      `&body=${encodeURIComponent(body)}`;
-
-    setDraftOpened(true);
+    if (busyRef.current || received?.emailStatus === "sent") return;
+    const body = {
+      name: name.trim(),
+      email: email.trim(),
+      contact: contact.trim(),
+      record: record.trim(),
+      notes: notes.trim(),
+    };
+    const signature = JSON.stringify(body);
+    if (signature !== request.current.signature)
+      request.current = { signature, id: newCheckoutId() };
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`${API}/api/record-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, requestId: request.current.id }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(
+          result.error || "We couldn’t send your request. Please try again.",
+        );
+      if (
+        !result.received ||
+        !["sent", "failed", "sending"].includes(result.emailStatus)
+      )
+        throw new Error("We couldn’t confirm your request. Please try again.");
+      setReceived(result);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to connect. Please try again.",
+      );
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+  function startAnother() {
+    setName("");
+    setEmail("");
+    setContact("");
+    setRecord("");
+    setNotes("");
+    setReceived(null);
+    setError("");
+    request.current = { signature: "", id: "" };
   }
 
   return (
@@ -64,14 +106,12 @@ export default function RequestRecordPage() {
               <h1 className="m-0 font-[Marcellus,Georgia,serif] text-[clamp(44px,5.5vw,76px)] font-normal leading-[1.08] tracking-[-0.025em]">
                 On your wishlist.
                 <br />
-                <span className="text-[#cbb79c]">
-                  On our radar.
-                </span>
+                <span className="text-[#cbb79c]">On our radar.</span>
               </h1>
 
               <p className="mb-0 mt-7 max-w-[440px] text-[15px] leading-7 text-[#c0b4a3]">
-                The one you missed. The album you keep coming back to.
-                The record you can’t seem to find anywhere.
+                The one you missed. The album you keep coming back to. The
+                record you can’t seem to find anywhere.
               </p>
 
               <p className="mb-0 mt-4 max-w-[440px] text-[15px] leading-7 text-[#c0b4a3]">
@@ -132,143 +172,211 @@ export default function RequestRecordPage() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="request-name"
-                    className="block text-sm text-[#efe8dc]"
-                  >
-                    Your name
-                    <span className="ml-2 text-xs text-[#c0b4a3]">
-                      Required
-                    </span>
-                  </label>
-                  <input
-                    id="request-name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    required
-                    maxLength={100}
-                    placeholder="How can we address you?"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-6"
+                aria-busy={busy}
+              >
+                <fieldset
+                  disabled={busy || Boolean(received)}
+                  className="m-0 min-w-0 space-y-6 border-0 p-0"
+                >
+                  <div>
+                    <label
+                      htmlFor="request-name"
+                      className="block text-sm text-[#efe8dc]"
+                    >
+                      Your name
+                      <span className="ml-2 text-xs text-[#c0b4a3]">
+                        Required
+                      </span>
+                    </label>
+                    <input
+                      id="request-name"
+                      name="name"
+                      type="text"
+                      autoComplete="name"
+                      required
+                      maxLength={100}
+                      placeholder="How can we address you?"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
 
-                <div>
-                  <label
-                    htmlFor="request-contact"
-                    className="block text-sm text-[#efe8dc]"
-                  >
-                    Phone number or Telegram
-                    <span className="ml-2 text-xs text-[#c0b4a3]">
-                      Required
-                    </span>
-                  </label>
-                  <input
-                    id="request-contact"
-                    name="contact"
-                    type="text"
-                    required
-                    maxLength={100}
-                    placeholder="+65 9123 4567 or @yourusername"
-                    aria-describedby="contact-hint"
-                    value={contact}
-                    onChange={(event) => setContact(event.target.value)}
-                    className={inputClass}
-                  />
-                  <p
-                    id="contact-hint"
-                    className="mb-0 mt-2 text-xs leading-5 text-[#c0b4a3]"
-                  >
-                    So we can get in touch about your request.
-                  </p>
-                </div>
+                  <div>
+                    <label
+                      htmlFor="request-email"
+                      className="block text-sm text-[#efe8dc]"
+                    >
+                      Email address{" "}
+                      <span className="ml-2 text-xs text-[#c0b4a3]">
+                        Required
+                      </span>
+                    </label>
+                    <input
+                      id="request-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      required
+                      maxLength={254}
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className={inputClass}
+                      aria-describedby="email-hint"
+                    />
+                    <p
+                      id="email-hint"
+                      className="mb-0 mt-2 text-xs leading-5 text-[#c0b4a3]"
+                    >
+                      We’ll email you a confirmation and follow up about your
+                      request.
+                    </p>
+                  </div>
 
-                <div>
-                  <label
-                    htmlFor="request-record"
-                    className="block text-sm text-[#efe8dc]"
-                  >
-                    Which record are you looking for?
-                    <span className="ml-2 text-xs text-[#c0b4a3]">
-                      Required
-                    </span>
-                  </label>
-                  <input
-                    id="request-record"
-                    name="record"
-                    type="text"
-                    required
-                    maxLength={200}
-                    placeholder="e.g. Slowdive - Souvlaki"
-                    value={record}
-                    onChange={(event) => setRecord(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+                  <div>
+                    <label
+                      htmlFor="request-contact"
+                      className="block text-sm text-[#efe8dc]"
+                    >
+                      Phone number or Telegram
+                      <span className="ml-2 text-xs text-[#c0b4a3]">
+                        Optional
+                      </span>
+                    </label>
+                    <input
+                      id="request-contact"
+                      name="contact"
+                      type="text"
+                      maxLength={100}
+                      placeholder="+65 9123 4567 or @yourusername"
+                      aria-describedby="contact-hint"
+                      value={contact}
+                      onChange={(event) => setContact(event.target.value)}
+                      className={inputClass}
+                    />
+                    <p
+                      id="contact-hint"
+                      className="mb-0 mt-2 text-xs leading-5 text-[#c0b4a3]"
+                    >
+                      So we can get in touch about your request.
+                    </p>
+                  </div>
 
-                <div>
-                  <label
-                    htmlFor="request-notes"
-                    className="block text-sm text-[#efe8dc]"
-                  >
-                    Anything else?
-                    <span className="ml-2 text-xs text-[#c0b4a3]">
-                      Optional
-                    </span>
-                  </label>
-                  <textarea
-                    id="request-notes"
-                    name="notes"
-                    rows={4}
-                    maxLength={1500}
-                    placeholder="A particular pressing, colour variant, budget, or another detail we should know…"
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    className={`${inputClass} resize-y text-[#efe8dc]`}
-                  />
-                </div>
+                  <div>
+                    <label
+                      htmlFor="request-record"
+                      className="block text-sm text-[#efe8dc]"
+                    >
+                      Which record are you looking for?
+                      <span className="ml-2 text-xs text-[#c0b4a3]">
+                        Required
+                      </span>
+                    </label>
+                    <input
+                      id="request-record"
+                      name="record"
+                      type="text"
+                      required
+                      maxLength={200}
+                      placeholder="e.g. Slowdive - Souvlaki"
+                      value={record}
+                      onChange={(event) => setRecord(event.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
 
+                  <div>
+                    <label
+                      htmlFor="request-notes"
+                      className="block text-sm text-[#efe8dc]"
+                    >
+                      Anything else?
+                      <span className="ml-2 text-xs text-[#c0b4a3]">
+                        Optional
+                      </span>
+                    </label>
+                    <textarea
+                      id="request-notes"
+                      name="notes"
+                      rows={4}
+                      maxLength={1500}
+                      placeholder="A particular pressing, colour variant, budget, or another detail we should know…"
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      className={`${inputClass} resize-y text-[#efe8dc]`}
+                    />
+                  </div>
+                </fieldset>
                 <div className="border-t border-white/10 pt-6">
                   <p className="mb-5 mt-0 text-xs leading-6 text-[#c0b4a3]">
-                    Requests aren’t orders or reservations. Availability
-                    and pricing will need to be confirmed.
+                    Requests aren’t orders or reservations. Availability and
+                    pricing will need to be confirmed. We use your details to
+                    respond to this request.
                   </p>
 
                   <button
                     type="submit"
-                    className="flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-4 rounded-md border-0 bg-[#cbb79c] px-5 py-3.5 text-sm font-medium text-[#15120f] transition-colors hover:bg-[#dfcdb3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4 motion-reduce:transition-none"
+                    disabled={busy || received?.emailStatus === "sent"}
+                    className="flex min-h-[52px] w-full cursor-pointer items-center justify-between gap-4 rounded-md border-0 bg-[#cbb79c] px-5 py-3.5 text-sm font-medium text-[#15120f] transition-colors hover:bg-[#dfcdb3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#cbb79c] focus-visible:outline-offset-4 motion-reduce:transition-none disabled:cursor-default disabled:opacity-60"
                   >
-                    Create request email
+                    {busy
+                      ? "Sending your request…"
+                      : received?.emailStatus === "sent"
+                        ? "Request received"
+                        : received
+                          ? "Check / retry confirmation email"
+                          : "Send record request"}
                     <span aria-hidden="true" className="text-lg">
                       ↗
                     </span>
                   </button>
 
                   <p className="mb-0 mt-3 text-center text-xs leading-5 text-[#c0b4a3]">
-                    Opens your email app. Send the draft to complete
-                    your request.
+                    Sent directly to Kopi’s Records. No email app needed.
                   </p>
                 </div>
 
-                {draftOpened && (
+                {error && (
+                  <p role="alert" className="text-sm leading-6 text-[#f0b8a8]">
+                    {error}
+                  </p>
+                )}
+                {received && (
                   <div
                     role="status"
                     className="rounded-md border border-[#cbb79c]/30 bg-[#15120f] p-4 text-sm leading-6 text-[#efe8dc]"
                   >
-                    Your email draft was requested. If it didn’t open,
-                    email{" "}
-                    <a
-                      href="mailto:kopisrecords@gmail.com"
-                      className="break-all text-[#cbb79c] underline underline-offset-4"
+                    {received.emailStatus === "sent" ? (
+                      <>
+                        <p className="m-0">
+                          We’ve received your request for{" "}
+                          <strong>{record.trim()}</strong>.
+                        </p>
+                        <p className="mt-2 mb-0 text-[#c0b4a3]">
+                          A confirmation email is on its way to {email.trim()}.
+                          If you don’t see it, check your spam folder. We’ll get
+                          in touch if we can source a copy.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="m-0">
+                        {received.message ||
+                          "Your request is saved, but we couldn’t confirm email delivery. Please retry or email kopisrecords@gmail.com."}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={startAnother}
+                      disabled={busy}
+                      className="mt-3 min-h-11 text-[#cbb79c] underline underline-offset-4"
                     >
-                      kopisrecords@gmail.com
-                    </a>{" "}
-                    with the details above. Your request is only sent
-                    when you send the email.
+                      Request another record
+                    </button>
                   </div>
                 )}
               </form>

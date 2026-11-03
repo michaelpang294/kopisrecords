@@ -1,3 +1,5 @@
+import { adminRequestRoutes } from "./admin-requests.mjs";
+import { recordRequestRoutes } from "./record-requests.mjs";
 import { recoveryRoutes } from "./order-access.mjs";
 import { installAdminAuth } from "./admin-auth.mjs";
 import { adminOrderRoutes } from "./admin-orders.mjs";
@@ -56,9 +58,22 @@ function readTags(value) {
   }
   return value;
 }
-function productForJson(row) {
+function productForJson(row, publicApiUrl) {
   // MySQL DECIMAL stays exact in storage; React's Product type expects a number.
-  return { ...row, price: Number(row.price), tags: readTags(row.tags) ?? [] };
+  let cover = row.cover_image;
+  // Only rewrite this project's local sample files; preserve remote image URLs.
+  if (publicApiUrl && typeof cover === "string") {
+    const match = cover.match(
+      /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/covers\/(sample-\d+\.svg)$/,
+    );
+    if (match) cover = `${publicApiUrl.replace(/\/$/, "")}/covers/${match[1]}`;
+  }
+  return {
+    ...row,
+    cover_image: cover,
+    price: Number(row.price),
+    tags: readTags(row.tags) ?? [],
+  };
 }
 
 function validateProduct(body, creating = false) {
@@ -157,6 +172,21 @@ async function guardStock(db, id, expectedStock, nextStock) {
 export function createApp(pool, origins, options = {}) {
   const app = express();
   app.disable("x-powered-by");
+  if (options.passengerMount) {
+    // Passenger installations can forward either the full URL or the path
+    // relative to PassengerBaseURI. Keep the existing /api route contract.
+    app.use((req, res, next) => {
+      const mount = options.passengerMount;
+      if (
+        req.url !== mount &&
+        !req.url.startsWith(mount + "/") &&
+        !req.url.startsWith(mount + "?")
+      ) {
+        req.url = mount + (req.url.startsWith("/") ? req.url : "/" + req.url);
+      }
+      next();
+    });
+  }
 
   // Reject foreign browser origins before writes can reach the database.
   app.use((req, res, next) => {
@@ -180,9 +210,13 @@ export function createApp(pool, origins, options = {}) {
   // Bundled local placeholders keep the sample product images working offline.
   const coversPath = fileURLToPath(new URL("./covers/", import.meta.url));
   app.use("/covers", express.static(coversPath));
+  app.use("/api/covers", express.static(coversPath));
+
+  recordRequestRoutes(app, pool, options.requestMailer);
 
   const requireAdmin = installAdminAuth(app, options);
   adminOrderRoutes(app, pool, requireAdmin);
+  adminRequestRoutes(app, pool, requireAdmin);
   recoveryRoutes(app, pool, { transaction, orderResponse, requireAdmin });
   checkoutRoutes(app, pool);
 
@@ -199,7 +233,7 @@ export function createApp(pool, origins, options = {}) {
       const [rows] = await pool.execute("SELECT * FROM stock ORDER BY id DESC");
       if (req.query.inventory !== "on-hand")
         for (const row of rows) row.stock = await availableStock(pool, row);
-      res.json(rows.map(productForJson));
+      res.json(rows.map((row) => productForJson(row, options.publicApiUrl)));
     },
   );
 
@@ -218,7 +252,7 @@ export function createApp(pool, origins, options = {}) {
         return res.status(404).json({ error: "Product not found." });
       if (req.query.inventory !== "on-hand")
         rows[0].stock = await availableStock(pool, rows[0]);
-      res.json(productForJson(rows[0]));
+      res.json(productForJson(rows[0], options.publicApiUrl));
     },
   );
 

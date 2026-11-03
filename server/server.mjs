@@ -1,3 +1,4 @@
+import { ensureRecordRequests } from "./record-requests.mjs";
 import { ensureOrders, expireOrders } from "./checkout.mjs";
 import mysql from "mysql2/promise";
 import { createApp } from "./app.mjs";
@@ -26,6 +27,7 @@ try {
   // Check the actual schema too, so a missing import is caught at startup.
   await pool.execute("SELECT id FROM stock LIMIT 1");
   await ensureOrders(pool);
+  await ensureRecordRequests(pool);
   await expireOrders(pool);
 } catch (error) {
   console.error(
@@ -45,7 +47,11 @@ const origins = (
   .map((origin) => origin.trim())
   .filter(Boolean);
 const port = Number(process.env.API_PORT || 3001);
-const app = createApp(pool, origins);
+const passenger = typeof globalThis.PhusionPassenger !== "undefined";
+const app = createApp(pool, origins, {
+  passengerMount: passenger ? "/api" : undefined,
+  publicApiUrl: process.env.PUBLIC_API_URL,
+});
 const expiryTimer = setInterval(
   () =>
     expireOrders(pool).catch((error) =>
@@ -54,12 +60,13 @@ const expiryTimer = setInterval(
   30000,
 );
 expiryTimer.unref();
-// Local testing only: bind to loopback. The frontend still calls localhost:3001.
-const server = app.listen(port, process.env.API_HOST || "127.0.0.1", () => {
-  console.log(`Kopi's Records API: http://localhost:${port}/api/stock`);
-  console.log(`Database connected: ${process.env.DB_NAME}`);
-  console.log("Keep this terminal open while testing your website.");
-});
+// Passenger binds its own socket; local development still uses loopback.
+const ready = () => {
+  console.log("Kopi's Records API started; database connected.");
+};
+const server = passenger
+  ? app.listen("passenger", ready)
+  : app.listen(port, process.env.API_HOST || "127.0.0.1", ready);
 server.on("error", async (error) => {
   console.error(
     error.code === "EADDRINUSE"

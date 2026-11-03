@@ -1,4 +1,4 @@
-import { ClipboardList, Plus, Disc3, Package } from "lucide-react";
+import { ClipboardList, Plus, Disc3, Package, Inbox } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import Footer from "../footer";
@@ -7,9 +7,11 @@ import CreateProductSection from "../actions/CreateProduct";
 import UpdateProductSection from "../actions/UpdateProduct";
 import StockLevelsSection from "../actions/StockLevels";
 import OrdersSection from "../admin/OrdersSection";
+import RequestsSection from "../admin/RequestsSection";
 import { API, adminJson } from "../admin/adminApi";
 const links = [
   { label: "Orders", icon: ClipboardList, to: "/admin/orders" },
+  { label: "Requests", icon: Inbox, to: "/admin/requests" },
   { label: "Add record", icon: Plus, to: "/admin/create" },
   { label: "Edit records", icon: Disc3, to: "/admin/edit" },
   { label: "Stock", icon: Package, to: "/admin/stock" },
@@ -169,7 +171,7 @@ export default function AdminPage() {
               <div className="grid items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
                 <nav
                   aria-label="Admin navigation"
-                  className="sticky top-[57px] z-30 grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
+                  className="sticky top-[57px] z-30 grid grid-cols-5 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
                 >
                   {links.map((link) => (
                     <NavLink
@@ -185,7 +187,9 @@ export default function AdminPage() {
                   ))}
                 </nav>
                 <div className="min-w-0">
-                  {action === "create" ? (
+                  {action === "requests" ? (
+                    <RequestsSection />
+                  ) : action === "create" ? (
                     <CreateProductSection />
                   ) : action === "edit" ? (
                     <UpdateProductSection />

@@ -38,8 +38,11 @@ export default function Footer() {
               Kopi’s Records
             </Link>
 
-            <p className={`${type.small} mb-0 mt-4 max-w-[290px] text-[#c0b4a3]`}>
-              We hope that you find something you like in our crates. Thank you for your support!
+            <p
+              className={`${type.small} mb-0 mt-4 max-w-[290px] text-[#c0b4a3]`}
+            >
+              We hope that you find something you like in our crates. Thank you
+              for your support!
             </p>
 
             <a
@@ -78,9 +81,17 @@ export default function Footer() {
               Here to help
             </h3>
             <ul className="m-0 list-none p-0">
+              <li>
+                <Link to="/blog" className={linkClass}>
+                  Blog
+                </Link>
+              </li>
               {information.map((item) => (
                 <li key={item.name}>
-                  <Link to={`/${item.link.replace(/^\/+/, "")}`} className={linkClass}>
+                  <Link
+                    to={`/${item.link.replace(/^\/+/, "")}`}
+                    className={linkClass}
+                  >
                     {item.name}
                   </Link>
                 </li>
@@ -100,8 +111,11 @@ export default function Footer() {
             <h3 id="footer-social-title" className={headingClass}>
               Stay in rotation
             </h3>
-            <p className={`${type.small} mb-3 mt-0 max-w-[270px] text-[#c0b4a3]`}>
-              New arrivals weekly, preorders for new releases, and updates here and there.
+            <p
+              className={`${type.small} mb-3 mt-0 max-w-[270px] text-[#c0b4a3]`}
+            >
+              New arrivals weekly, preorders for new releases, and updates here
+              and there.
             </p>
             <ul className="m-0 flex list-none flex-wrap gap-x-6 p-0 lg:block">
               {socials.map((social) => (
