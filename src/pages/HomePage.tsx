@@ -261,10 +261,10 @@ export default function HomePage() {
                     to="/shop?sort=record_of_the_week"
                     className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`}
                   >
-                    Explore our picks ↗
+                    See more from our blog ↗
                   </Link>
                 </div>
-                <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7 min-[1001px]:grid-cols-3">
+                <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7">
                   {curated.map((product) => (
                     <RecordCard key={product.id} product={product} />
                   ))}

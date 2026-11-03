@@ -37,7 +37,7 @@ const tagLabels: Record<string, string> = {
 };
 
 const sortOptions = [
-  { value: "default", label: "Catalogue order" },
+  { value: "default", label: "Default" },
   ...tagSortOptions,
   { value: "price-asc", label: "Price: low to high" },
   { value: "price-desc", label: "Price: high to low" },
