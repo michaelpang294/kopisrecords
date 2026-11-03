@@ -1,3 +1,4 @@
+import { API } from "../api";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -264,7 +265,7 @@ export default function CartPage() {
   useEffect(() => {
     if (!hasItems) return;
     const controller = new AbortController();
-    fetch("http://localhost:3001/api/stock", { signal: controller.signal })
+    fetch(`${API}/api/stock`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("Stock unavailable");
         return response.json();

@@ -1,8 +1,5 @@
-const configuredApi = import.meta.env?.VITE_API_URL;
-export const API =
-  typeof configuredApi === "string"
-    ? configuredApi.replace(/\/$/, "")
-    : "http://localhost:3001";
+import { API } from "../api";
+export { API } from "../api";
 export async function adminFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},

@@ -1,3 +1,4 @@
+import { API } from "../api";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -69,7 +70,7 @@ export default function ProductPage() {
     setNotice({ text: "", error: false });
     window.scrollTo(0, 0);
 
-    fetch("http://localhost:3001/api/stock", { signal: controller.signal })
+    fetch(`${API}/api/stock`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("Stock unavailable");
         return response.json();

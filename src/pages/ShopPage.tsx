@@ -1,3 +1,4 @@
+import { API } from "../api";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -255,7 +256,7 @@ export default function ShopPage() {
     setLoading(true);
     setError(false);
 
-    fetch("http://localhost:3001/api/stock", { signal: controller.signal })
+    fetch(`${API}/api/stock`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("Stock unavailable");
         return response.json();
