@@ -88,7 +88,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/" className={linkClass}>
+                <Link to="/local-gigs" className={linkClass}>
                   Local Gigs
                 </Link>
               </li>

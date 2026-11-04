@@ -13,7 +13,7 @@ import { typography as type } from "../styles/typography";
 const money = (value: number) =>
   Number.isFinite(value) ? `$${value.toFixed(2)}` : "Price unavailable";
 
-function RecordCard({ product }: { product: Product }) {
+function RecordCard({ product, editorial = false }: { product: Product; editorial?: boolean }) {
   const [failed, setFailed] = useState(false);
   return (
     <article className="min-w-0">
@@ -35,10 +35,10 @@ function RecordCard({ product }: { product: Product }) {
               ♪
             </div>
           )}
-          {isPreorder(product) && (
+          {!editorial && isPreorder(product) && (
             <span className={`${type.meta} absolute left-2 top-2 rounded-full border border-[#cbb79c]/20 bg-[#211b16]/80 px-2.5 py-1`}>Preorder</span>
           )}
-          {Number(product.stock) <= 0 && !isPreorder(product) && (
+          {!editorial && Number(product.stock) <= 0 && !isPreorder(product) && (
             <span
               className={`${type.meta} absolute bottom-3 left-3 bg-[#15120fe6] px-2.5 py-1`}
             >
@@ -50,6 +50,12 @@ function RecordCard({ product }: { product: Product }) {
           {product.artist}
         </p>
         <h3 className={`${type.itemTitle} mt-0 mb-[9px]`}>{product.title}</h3>
+        {editorial ? (
+          <p className={`${type.small} mt-3 mb-4 whitespace-pre-line text-[#c0b4a3] [overflow-wrap:anywhere]`}>
+            {product.description}
+          </p>
+        ) : (
+          <>
         <p
           className={`${type.meta} mt-0 mb-3 text-[#c0b4a3] [overflow-wrap:anywhere]`}
         >
@@ -61,6 +67,8 @@ function RecordCard({ product }: { product: Product }) {
             {isPreorder(product) ? "Preorder" : Number(product.stock) > 0 ? "In stock" : "Sold out"}
           </span>
         </div>
+          </>
+        )}
         <span
           className={`${type.ui} mt-4 flex justify-between border-t border-[#ffffff18] pt-3`}
         >
@@ -270,7 +278,7 @@ export default function HomePage() {
                 </div>
                 <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7">
                   {curated.map((product) => (
-                    <RecordCard key={product.id} product={product} />
+                    <RecordCard key={product.id} product={product} editorial />
                   ))}
                 </div>
               </div>
