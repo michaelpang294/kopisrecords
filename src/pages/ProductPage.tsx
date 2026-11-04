@@ -9,6 +9,7 @@ import type { Product } from "../scripts/product";
 import { typography as type } from "../styles/typography";
 import { useCart } from "../cart/CartContext";
 import { getPriceCents, getStock } from "../cart/cartStorage";
+import { isPreorder, preorderRelease } from "../scripts/preorder";
 import RestockSignup from "../stock/RestockSignup";
 
 const focus =
@@ -32,7 +33,10 @@ function genresOf(product: Product) {
 function Cover({ product }: { product: Product }) {
   const [failed, setFailed] = useState(false);
   return (
-    <div className="aspect-square overflow-hidden bg-[#28231d]">
+    <div className="relative aspect-square overflow-hidden bg-[#28231d]">
+      {isPreorder(product) && (
+        <span className="absolute left-2 top-2 z-10 rounded-full border border-[#cbb79c]/20 bg-[#211b16]/80 px-2.5 py-1 text-xs text-[#efe8dc]">Preorder</span>
+      )}
       {product.cover_image && !failed ? (
         <img
           src={product.cover_image}
@@ -98,6 +102,7 @@ function ProductDetails({ id }: { id?: string }) {
   }
 
   const product = products.find((item) => String(item.id) === id);
+  const preorder = isPreorder(product);
   const stock = getStock(product?.stock);
   const price = Number(product?.price);
   const validPrice = getPriceCents(product?.price) !== null;
@@ -255,7 +260,7 @@ function ProductDetails({ id }: { id?: string }) {
                         aria-hidden="true"
                         className={`h-1.5 w-1.5 rounded-full ${stock > 0 ? "bg-[#cbb79c]" : "bg-[#c0b4a3]"}`}
                       />
-                      {stock > 0 ? `In stock · ${stock} available` : "Sold out"}
+                      {preorder ? preorderRelease(product.released) : stock > 0 ? `In stock · ${stock} available` : "Sold out"}
                     </p>
                   </div>
                 </div>
@@ -320,10 +325,10 @@ function ProductDetails({ id }: { id?: string }) {
                       >
                         <ShoppingBag size={18} aria-hidden="true" />
                         {stock < 1
-                          ? "Sold out"
+                          ? (preorder ? "Preorders closed" : "Sold out")
                           : remainingStock < 1
                             ? "In your cart"
-                            : "Add to cart"}
+                            : preorder ? "Preorder" : "Add to cart"}
                       </button>
                     </div>
                     <p
@@ -339,7 +344,7 @@ function ProductDetails({ id }: { id?: string }) {
                     )}
                   </form>
 
-                  {stock < 1 && (
+                  {stock < 1 && !preorder && (
                     <RestockSignup
                       key={product.id}
                       productId={Number(product.id)}
@@ -347,7 +352,7 @@ function ProductDetails({ id }: { id?: string }) {
                     />
                   )}
 
-                  {stock < 1 && (
+                  {stock < 1 && !preorder && (
                     <Link
                       to="/request"
                       className={`${type.small} ${focus} mt-2 inline-flex min-h-11 items-center gap-2 text-[#cbb79c] underline underline-offset-4 max-lg:text-xs lg:mb-5 lg:mt-0`}

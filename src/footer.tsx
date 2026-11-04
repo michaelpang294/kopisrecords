@@ -83,7 +83,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/" className={linkClass}>
+                <Link to="/faq" className={linkClass}>
                   FAQ
                 </Link>
               </li>
@@ -93,7 +93,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/" className={linkClass}>
+                <Link to="/contact" className={linkClass}>
                   Contact Us
                 </Link>
               </li>

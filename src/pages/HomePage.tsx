@@ -1,3 +1,4 @@
+import { isPreorder } from "../scripts/preorder";
 import { API } from "../api";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -34,7 +35,10 @@ function RecordCard({ product }: { product: Product }) {
               ♪
             </div>
           )}
-          {Number(product.stock) <= 0 && (
+          {isPreorder(product) && (
+            <span className={`${type.meta} absolute left-2 top-2 rounded-full border border-[#cbb79c]/20 bg-[#211b16]/80 px-2.5 py-1`}>Preorder</span>
+          )}
+          {Number(product.stock) <= 0 && !isPreorder(product) && (
             <span
               className={`${type.meta} absolute bottom-3 left-3 bg-[#15120fe6] px-2.5 py-1`}
             >
@@ -54,7 +58,7 @@ function RecordCard({ product }: { product: Product }) {
         <div className="flex flex-wrap items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-1">
           <strong className={type.ui}>{money(Number(product.price))}</strong>
           <span className={`${type.meta} text-[#c0b4a3]`}>
-            {Number(product.stock) > 0 ? "In stock" : "Sold out"}
+            {isPreorder(product) ? "Preorder" : Number(product.stock) > 0 ? "In stock" : "Sold out"}
           </span>
         </div>
         <span

@@ -17,6 +17,8 @@ import type { Product } from "../scripts/product";
 import { typography as type } from "../styles/typography";
 import shopBackground from "../assets/backgrounds/third-slide-bg.png";
 
+import { isPreorder } from "../scripts/preorder";
+
 const PAGE_SIZE = 50;
 type TaggedProduct = Product & { tags: string[] };
 
@@ -34,6 +36,7 @@ const tagLabels: Record<string, string> = {
   recommended: "Recommended",
   bestseller: "Best Seller",
   sale: "On Sale",
+  preorder: "Preorder",
 };
 
 const sortOptions = [
@@ -140,6 +143,7 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
 function RecordCard({ product }: { product: TaggedProduct }) {
   const [failed, setFailed] = useState(false);
   const inStock = Number(product.stock) > 0;
+  const preorder = isPreorder(product);
   const tags = [...new Set(product.tags)];
 
   return (
@@ -189,7 +193,7 @@ function RecordCard({ product }: { product: TaggedProduct }) {
             </ul>
           )}
 
-          {!inStock && (
+          {!inStock && !preorder && (
             <span
               className={`${cardText.pill} absolute bottom-1 left-1 bg-[#15120f]/95 px-1 py-0.5 text-[#efe8dc] lg:bottom-2 lg:left-2 lg:px-2 lg:py-1`}
             >
@@ -226,7 +230,7 @@ function RecordCard({ product }: { product: TaggedProduct }) {
           <p
             className={`${cardText.meta} m-0 mt-0.5 lg:mt-1 ${inStock ? "text-[#cbb79c]" : "text-[#c0b4a3]"}`}
           >
-            {inStock ? "In stock" : "Sold out"}
+            {preorder ? "Preorder" : inStock ? "In stock" : "Sold out"}
           </p>
         </div>
       </Link>
@@ -246,6 +250,7 @@ export default function ShopPage() {
   const query = params.get("q") ?? routeQuery ?? "";
   const genres = params.getAll("genre").map((value) => value.toLowerCase());
   const formats = params.getAll("format").map((value) => value.toLowerCase());
+  const selectedTags = params.getAll("tag").map((value) => value.toLowerCase());
   const inStockOnly = (params.get("stock") ?? "in") === "in";
   const minValue = params.get("min") || "";
   const maxValue = params.get("max") || "";
@@ -304,24 +309,26 @@ export default function ShopPage() {
     );
   }
 
-  function toggleOption(key: "genre" | "format", value: string, checked: boolean) {
+  function toggleOption(key: "genre" | "format" | "tag", value: string, checked: boolean) {
     const next = params.getAll(key).filter((item) => item.toLowerCase() !== value.toLowerCase());
     if (checked) next.push(value);
-    updateParams({ [key]: next });
+    updateParams({ [key]: next, ...(key === "tag" && value === "preorder" && checked ? { stock: "all" } : {}) });
   }
 
   function clearFilters() {
-    updateParams({ q: "", genre: null, format: null, stock: "all", min: null, max: null });
+    updateParams({ q: "", genre: null, format: null, tag: null, stock: "all", min: null, max: null });
   }
 
   const filtered = useMemo(() => {
     const search = (params.get("q") ?? routeQuery ?? "").trim().toLowerCase();
+    const tags = params.getAll("tag").map((value) => value.toLowerCase());
     const selectedGenres = params.getAll("genre").map((value) => value.toLowerCase());
     const selectedFormats = params.getAll("format").map((value) => value.toLowerCase());
     const minimum = params.get("min");
     const maximum = params.get("max");
 
     const result = products.filter((product) => {
+      if (tags.length && !tags.some((tag) => product.tags.includes(tag))) return false;
       if (search) {
         const text = [product.title, product.artist, product.barcode, product.genre]
           .filter(Boolean)
@@ -394,7 +401,7 @@ export default function ShopPage() {
   const start = (page - 1) * PAGE_SIZE;
   const visibleProducts = filtered.slice(start, start + PAGE_SIZE);
   const filterCount =
-    genres.length + formats.length + Number(inStockOnly) + Number(Boolean(minValue || maxValue));
+    genres.length + formats.length + selectedTags.length + Number(inStockOnly) + Number(Boolean(minValue || maxValue));
   const hasFilters = filterCount > 0 || query.trim().length > 0;
 
   function goToPage(next: number) {
@@ -415,6 +422,13 @@ export default function ShopPage() {
       label: "In stock",
       remove: () => updateParams({ stock: "all" }),
     });
+  selectedTags.forEach((value) =>
+    chips.push({
+      key: `tag-${value}`,
+      label: tagLabels[value] || value,
+      remove: () => toggleOption("tag", value, false),
+    }),
+  );
   genres.forEach((value) =>
     chips.push({
       key: `genre-${value}`,
@@ -564,6 +578,20 @@ export default function ShopPage() {
                   {loading ? "Loading formats…" : "No formats available."}
                 </p>
               )}
+            </FilterGroup>
+
+            <FilterGroup title="Tags">
+              {Object.entries(tagLabels).map(([value, label]) => (
+                <label key={value} className={`${type.small} flex min-h-11 cursor-pointer items-center gap-3 text-[#c0b4a3]`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.includes(value)}
+                    onChange={(event) => toggleOption("tag", value, event.target.checked)}
+                    className="h-4 w-4 shrink-0 accent-[#cbb79c]"
+                  />
+                  {label}
+                </label>
+              ))}
             </FilterGroup>
 
             <FilterGroup title="Availability">

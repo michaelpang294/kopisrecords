@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type { ProductForm } from "./productForm";
 import { adminField, adminPanel } from "./productForm";
+import { isPreorder } from "../scripts/preorder";
 import RecordTags from "./RecordTags";
 export default function ProductFields({
   value,
@@ -79,7 +80,7 @@ export default function ProductFields({
             inputMode: "decimal",
             placeholder: "40.00",
           })}
-          {field("stock", "Copies on hand", {
+          {field("stock", isPreorder(value) ? "Preorder copies available" : "Copies on hand", {
             required: true,
             inputMode: "numeric",
             pattern: "[0-9]+",
@@ -107,10 +108,9 @@ export default function ProductFields({
             maxLength: 255,
             placeholder: "Shoegaze, Alternative rock",
           })}
-          {field("released", "Release year", {
-            inputMode: "numeric",
+          {field("released", isPreorder(value) ? "Preorder release date (YYYY-MM-DD)" : "Release year / date", {
             maxLength: 30,
-            placeholder: "1993",
+            placeholder: isPreorder(value) ? "2027-03-26" : "1993",
           })}
           {field("barcode", "Barcode", {
             inputMode: "numeric",

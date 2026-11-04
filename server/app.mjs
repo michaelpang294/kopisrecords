@@ -44,6 +44,7 @@ const textLimits = {
 const allowedMethods = new Set(["GET", "POST", "PUT", "DELETE", "OPTIONS"]);
 
 const allowedTags = new Set([
+  "preorder",
   "new_arrival",
   "recommended",
   "bestseller",

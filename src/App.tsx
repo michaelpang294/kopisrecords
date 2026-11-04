@@ -3,6 +3,8 @@ import { useLayoutEffect } from "react";
 import StoreHeader from "./components/StoreHeader";
 import HomePage from "./pages/HomePage";
 import ShopPage from "./pages/ShopPage";
+import FAQPage from "./pages/FAQPage";
+import ContactPage from "./pages/ContactPage";
 import BlogPage from "./pages/BlogPage";
 import BlogArticlePage from "./pages/BlogArticlePage";
 import ProductPage from "./pages/ProductPage";
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="/shop/search/:query" element={<ShopPage />} />
         <Route path="/shop/product/:id" element={<ProductPage />} />
 
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogArticlePage />} />
         <Route path="/request" element={<RequestRecordPage />} />

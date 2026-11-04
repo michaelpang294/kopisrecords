@@ -187,12 +187,12 @@ test("HTTP contract matches the existing React shop and admin forms", async (t) 
   res = await fetch(`${base}/covers/sample-01.svg`);
   assert.equal(res.status, 200);
   assert.match(await res.text(), /Souvlaki/);
-  const taggedForm = { ...form, tags: ["recommended", "recommended", "sale"] };
+  const taggedForm = { ...form, tags: ["recommended", "recommended", "sale", "preorder"] };
   pending.push({
     sql: /^INSERT INTO stock/,
     values: [
       ...expectedValues,
-      JSON.stringify(["new_arrival", "recommended", "sale"]),
+      JSON.stringify(["new_arrival", "recommended", "sale", "preorder"]),
     ],
     result: { insertId: 8 },
   });
@@ -202,6 +202,7 @@ test("HTTP contract matches the existing React shop and admin forms", async (t) 
     "new_arrival",
     "recommended",
     "sale",
+    "preorder",
   ]);
   pending.push({
     sql: /^UPDATE stock SET/,
