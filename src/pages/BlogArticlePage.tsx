@@ -6,7 +6,7 @@ import { posts, blogImage, readingMinutes } from "../blog/posts";
 export default function BlogArticlePage() {
   const { slug } = useParams();
   const post = posts.find((value) => value.slug === slug);
-  const cover = blogImage("cover");
+  const cover = blogImage("cover", post?.imageFolder);
   useEffect(() => {
     const previous = document.title;
     document.title = post
@@ -55,7 +55,7 @@ export default function BlogArticlePage() {
                 <figure className="mt-8 sm:mt-10">
                   <img
                     src={cover}
-                    alt="Kopi’s Records — welcome to the shop"
+                    alt={post.coverAlt || "Kopi’s Records — welcome to the shop"}
                     className="max-h-[520px] w-full rounded object-contain"
                   />
                 </figure>
@@ -79,11 +79,11 @@ export default function BlogArticlePage() {
               <div className="mx-auto max-w-[720px]">
                 {post.sections.map((section) => {
                   const images = (section.gallery || []).flatMap((name) => {
-                    const src = blogImage(name);
+                    const src = blogImage(name, post.imageFolder);
                     return src ? [{ name, src }] : [];
                   });
                   const scene = section.image
-                    ? blogImage(section.image)
+                    ? blogImage(section.image, post.imageFolder)
                     : undefined;
                   return (
                     <section
@@ -106,7 +106,7 @@ export default function BlogArticlePage() {
                       ))}
                       {images.length > 0 && (
                         <div
-                          aria-label="Photos of Kopi"
+                          aria-label={section.galleryAlt || "Photos of Kopi"}
                           className="mt-8 grid grid-cols-2 items-start gap-3 sm:grid-cols-3 sm:gap-4"
                         >
                           {images.map(({ name, src }, i) => (
@@ -120,7 +120,7 @@ export default function BlogArticlePage() {
                             >
                               <img
                                 src={src}
-                                alt={`Kopi, the tabby cat the shop is named after — photo ${i + 1}`}
+                                alt={`${section.galleryAlt || "Kopi, the tabby cat the shop is named after"} — photo ${i + 1}`}
                                 loading="lazy"
                                 className="aspect-square w-full rounded border border-white/10 object-cover"
                               />
@@ -132,7 +132,7 @@ export default function BlogArticlePage() {
                         <figure className="mt-8">
                           <img
                             src={scene}
-                            alt="Behind the scenes at Kopi’s Records"
+                            alt={section.imageAlt || "Behind the scenes at Kopi’s Records"}
                             loading="lazy"
                             className="max-h-[560px] w-full rounded border border-white/10 object-contain"
                           />

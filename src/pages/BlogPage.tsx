@@ -5,7 +5,6 @@ import { posts, blogImage, readingMinutes } from "../blog/posts";
 import { typography as type } from "../styles/typography";
 
 export default function BlogPage() {
-  const cover = blogImage("cover");
   return (
     <>
       <main
@@ -24,7 +23,9 @@ export default function BlogPage() {
             </p>
           </header>
           <div className="space-y-10">
-            {posts.map((post, index) => (
+            {posts.map((post, index) => {
+              const cover = blogImage("cover", post.imageFolder);
+              return (
               <article key={post.slug}>
                 <Link
                   to={`/blog/${post.slug}`}
@@ -33,7 +34,7 @@ export default function BlogPage() {
                   {cover ? (
                     <img
                       src={cover}
-                      alt="A glimpse into Kopi’s Records"
+                      alt={post.coverAlt || "A glimpse into Kopi’s Records"}
                       className="aspect-[4/3] h-full w-full object-cover"
                     />
                   ) : (
@@ -54,6 +55,9 @@ export default function BlogPage() {
                     </div>
                   )}
                   <div className="flex flex-col justify-center p-6 sm:p-10 lg:p-12">
+                    <h2 className="mb-4 font-marcellus text-2xl leading-snug sm:text-3xl">
+                      {post.title}
+                    </h2>
                     <p className="mb-6 text-xs text-[#c0b4a3]">
                       By {post.author} <span aria-hidden="true">·</span>{" "}
                       {readingMinutes(post)} min read
@@ -69,7 +73,8 @@ export default function BlogPage() {
                   </div>
                 </Link>
               </article>
-            ))}
+              );
+            })}
           </div>
         </div>
       </main>

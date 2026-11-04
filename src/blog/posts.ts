@@ -4,17 +4,80 @@ export type BlogSection = {
   paragraphs: string[];
   gallery?: string[];
   image?: string;
+  galleryAlt?: string;
+  imageAlt?: string;
 };
 export type BlogPost = {
   slug: string;
   title: string;
   author: string;
   category: string;
+  imageFolder?: string;
+  coverAlt?: string;
   excerpt: string;
   sections: BlogSection[];
 };
 
 export const posts: BlogPost[] = [
+  // Edit the Side A article text here. Photo filenames are documented in
+  // src/assets/blog/side-a-2026/README.md.
+  {
+    slug: "side-a-singapore-record-show-2026",
+    title: "Singapore Side A Record Show 2026",
+    author: "Michael",
+    category: "Out of the shop",
+    imageFolder: "side-a-2026",
+    coverAlt: "Kopi’s Records at Side A: Singapore Record Show 2026",
+    excerpt:
+      "What a day that was! A day of digging, familiar faces, new friends, and talking way too much about records. A big thank you to everyone who came by our booth at Side A.",
+    sections: [
+      {
+        id: "what-a-day",
+        paragraphs: [
+          "What a day that was! Side A: Singapore Record Show.",
+          "Huge thank you to everyone who battled through the crowd to visit, have a chit chat, and pick up some records from us! So many of you were so kind, awesome, and so damn passionate about music. Y’all were so lovely!",
+        ],
+        image: "booth-1",
+        imageAlt: "The Kopi’s Records booth at Side A 2026",
+      },
+      {
+        id: "what-side-a-means",
+        title: "What Side A means to us",
+        paragraphs: [
+          "Sometimes it feels like the record culture in Singapore is struggling to keep its spaces.",
+          "There are still people who deeply care about music and physical media, but we need places to come together, dig through records and share that excitement to keep this culture alive.",
+          "Being in a room full of people who get as excited about an album just as I do means a lot. Seeing familiar faces, making new friends, and hearing someone talk about a record they love.. Anybody could and would want to do that all day.",
+          "Just brilliance. 37 record shops, 37 booths, few thousand passionate music lovers. All in one place. It’s a beautiful event, just like my haul before the event even started.",
+        ],
+      },
+      {
+        id: "new-faces",
+        title: "New faces and friends",
+        paragraphs: [
+          "Also really happy to meet so many new faces and youths getting into our beautiful hobby of collecting vinyl. We hope you found something you’re excited to bring home and spin.",
+          "Getting to hear about your favourite albums and your stories is a huge part of why we love doing this.",
+        ],
+        gallery: ["crowd-1", "records-1", "friends-1"],
+        galleryAlt: "People and records at Side A 2026",
+      },
+      {
+        id: "thank-you",
+        title: "To the familiar faces",
+        paragraphs: [
+          "To the familiar faces who keep coming back to support us, it always makes our day seeing y’all again. Thank you for keeping this little record shop up and still going.",
+        ],
+      },
+      {
+        id: "thank-yous-organisers",
+        title: "My biggest thank yous",
+        paragraphs: [
+          "Biggest thank yous to boss, captain and the amazing Azri and team from Mosta Records for organising this event and having us for the second time.",
+          "This is what's clearly the best vinyl record show in Singapore and we are so happy to be a part of it.",
+          "Till the next one!"
+        ],
+      },
+    ],
+  },
   {
     slug: "welcome-to-kopis-records",
     title: "Welcome to Kopi’s Records!",
@@ -63,12 +126,13 @@ export const posts: BlogPost[] = [
 
 // Optional local photos: the pages build before the files have been added.
 const photos = import.meta.glob<string>(
-  "../assets/blog/welcome/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}",
+  "../assets/blog/*/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}",
   { eager: true, query: "?url", import: "default" },
 );
-export function blogImage(name: string): string | undefined {
+export function blogImage(name: string, folder = "welcome"): string | undefined {
   return Object.entries(photos).find(
     ([file]) =>
+      file.split("/").at(-2) === folder &&
       file
         .split("/")
         .pop()
