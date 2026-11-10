@@ -1,3 +1,4 @@
+import PreorderProgress, { mixedOrderNotice, type PreorderLine } from "../preorders/PreorderProgress";
 import { API } from "../admin/adminApi";
 import OrderLink from "../orders/OrderLink";
 import {
@@ -21,6 +22,7 @@ import { formatPrice } from "../cart/cartStorage";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
 type Order = {
+  preorders?: PreorderLine[];
   reference: string;
   subtotal: number;
   delivery: number;
@@ -480,6 +482,7 @@ export default function CheckoutPage() {
                       Start a fresh checkout (only if you haven’t paid)
                     </button>
                   )}
+                  <PreorderProgress preorders={order.preorders} items={order.items} active={["paid", "payment_reported", "awaiting_payment_confirmation"].includes(order.status)} />
                   <OrderLink token={recoveryToken} />
 
                 </dl>
@@ -510,6 +513,7 @@ export default function CheckoutPage() {
             >
               <section className={panel}>
                 <h2 className="mb-5 font-marcellus text-2xl">Your details</h2>
+                <p className="mb-5 rounded-lg border border-[#cbb79c]/30 p-4 text-sm leading-7 text-[#c0b4a3]">{mixedOrderNotice}</p>
                 <label className="text-sm">
                   Name
                   <input

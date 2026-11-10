@@ -39,9 +39,11 @@ const expiryTimer = cronMode ? null : setInterval(
 expiryTimer?.unref();
 app.locals.orderEmails.kick();
 app.locals.restockAlerts.kick();
+app.locals.preorderEmails.kick();
 const emailTimer = cronMode ? null : setInterval(() => {
   app.locals.orderEmails.kick();
   app.locals.restockAlerts.kick();
+  app.locals.preorderEmails.kick();
 }, 30000);
 emailTimer?.unref();
 // Passenger binds its own socket; local development still uses loopback.
@@ -67,6 +69,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       clearInterval(emailTimer);
       await app.locals.orderEmails.stop();
       await app.locals.restockAlerts.stop();
+      await app.locals.preorderEmails.stop();
       await pool.end();
       process.exit(0);
     }),

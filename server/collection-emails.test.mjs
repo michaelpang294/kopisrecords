@@ -92,11 +92,11 @@ test("ready and completed messages contain the bag number and private link, and 
   const ready = mailFor(f, "customer_ready_for_collection")[0];
   assert.equal(ready.from.address, "kopisrecords@gmail.com");
   assert.equal(ready.to.address, "customer@example.com");
-  assert.match(ready.subject, /Ready for collection.*999999/);
+  assert.match(ready.subject, /ready for collection.*KR/);
   assert.match(ready.text, /collection \/ bag number is 999999/);
   assert.match(ready.text, /98 Arab Street/);
-  assert.match(ready.text, /timing agreed/);
-  assert.match(ready.text, /tell us this number/i);
+  assert.match(ready.text, /before you head down/);
+  assert.match(ready.text, /Show this number/);
   const token = ready.text.match(/\/order#token=([a-f0-9]{64})/)[1];
   const receipt = await f.call("/api/order-recovery", undefined, "", { Authorization: "Bearer " + token });
   assert.equal(receipt.value.collectionNumber, 999999);
@@ -117,7 +117,7 @@ test("ready and completed messages contain the bag number and private link, and 
   assert.equal(mailFor(f, "customer_order_completed").length, 1);
   const thanks = mailFor(f, "customer_order_completed")[0];
   assert.match(thanks.text, /has been collected/);
-  assert.match(thanks.text, /enjoy your records/);
+  assert.match(thanks.text, /Enjoy your records/);
   assert.match(thanks.text, /\/order#token=[a-f0-9]{64}/);
   assert.equal(thanks.to.address, "customer@example.com");
   assert.equal(f.pool.state.stock, stockAfterPaid);
@@ -208,7 +208,7 @@ test("completed orders suppress a stale unsent collection email; delivery and ol
   await f.action(delivery.id, "completed");
   await f.app.locals.orderEmails.flush();
   const thanks = mailFor(f, "customer_order_completed").find((m) => m.messageId.includes(delivery.id));
-  assert.match(thanks.text, /is now complete/);
+  assert.match(thanks.text, /is complete/);
   assert(!thanks.text.includes("has been collected"));
   assert(!thanks.text.includes("Collection / bag number:"));
   const legacy = await f.checkout();
@@ -224,5 +224,5 @@ test("completed orders suppress a stale unsent collection email; delivery and ol
   }, "http://localhost:5173/order#token=" + legacy.token);
   assert(!escaped.html.includes("<script>"));
   assert.match(escaped.html, /&lt;script&gt;/);
-  assert.match(escaped.html, /YOUR COLLECTION \/ BAG NUMBER/);
+  assert.match(escaped.html, /Collection \/ bag number/);
 });

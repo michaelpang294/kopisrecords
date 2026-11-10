@@ -1,3 +1,4 @@
+import { orderPreorders } from "./preorders.mjs";
 import { randomUUID } from "node:crypto";
 import { createGmailSender, shopEmail } from "./gmail.mjs";
 
@@ -47,107 +48,142 @@ const money = (cents) => `S$${(Number(cents) / 100).toFixed(2)}`;
 const validCollectionNumber = (number) =>
   Number.isSafeInteger(number) && number >= 1 && number <= 999999;
 function emailContent(kind, order) {
+  const greeting = `Hi ${order.name},`;
   switch (kind) {
     case "shop_new_order":
       return {
-        title: "A new order needs your attention.",
-        subject: `New order: ${order.reference} — payment reported`,
+        title: "New order",
+        subject: `New order for ${order.items.reduce((count, item) => count + item.quantity, 0)} items!`,
         paragraphs: [
-          `A customer has reported payment for order ${order.reference}. ${order.paymentStatus === "paid" ? "Payment has already been confirmed in admin." : "Check the bank transfer before confirming payment in admin."}`,
+          order.paymentStatus === "paid"
+            ? "Payment is already confirmed in admin."
+            : "A customer has reported payment. Check the transfer before confirming it in admin.",
           `Name: ${order.name}\nEmail: ${order.email || "Not provided"}\nTelegram: ${order.telegram || "Not provided"}\nPhone: ${order.phone || order.contact || "Not provided"}`,
-          ...(order.fulfilment === "delivery"
-            ? [`Delivery address: ${order.address}\nSingapore ${order.postal}`]
-            : [
-                "Collection: Rocks Cafe, 98 Arab Street, Level 2, Back Alley Entrance (199794)",
-              ]),
+          order.fulfilment === "delivery"
+            ? `Delivery address: ${order.address}\nSingapore ${order.postal}`
+            : "Collection: Rocks Cafe, 98 Arab Street, Level 2, Back Alley Entrance (199794). Open Tuesday - Sunday, 2:30 - 11:00 pm",
         ],
       };
     case "customer_payment_reported":
       return {
-        title: "Thank you. We’ll check your payment.",
-        subject: `Thank you for your order ${order.reference} — payment under review`,
+        title: "Your order has been received!",
+        subject: `Thank you for purchasing from Kopi's Records - ${order.reference}`,
         paragraphs: [
-          `Hi ${order.name},`,
-          `Thank you for your order! We’ve received your payment notification for ${order.reference}. Please give us 1–2 hours to check the transfer manually.`,
-          "Don’t worry if your order isn’t confirmed straight away—your order and payment update are safely recorded with us. If your bank shows a successful transfer to our PayNow recipient, there’s no need to pay again. We’ll match the transfer to your order and email you once it’s confirmed.",
+          greeting,
+          "Thank you for your order! Please allow 1–2 hours for us to check on your transfer. We’ll email you once payment is confirmed.",
         ],
       };
     case "customer_payment_confirmed":
       return {
-        title: "Payment received. Your order is confirmed.",
-        subject: `Payment received — order ${order.reference} confirmed`,
+        title: "Payment confirmed",
+        subject: `Your payment has been confirmed - ${order.reference}`,
         paragraphs: [
-          `Hi ${order.name},`,
-          `Your payment for ${order.reference} has been received, and your order is confirmed. Thank you for supporting Kopi’s Records!`,
-          "We’ll contact you on Telegram or by phone with updates on self collection or delivery. You can also check your order using the private link below.",
+          greeting,
+          "Your payment has been received and your order is confirmed. Thank you!",
+          "We’ll send you an email soon once the records are packed and ready for collection at Rocks Cafe. Please wait for that email before heading down.",
         ],
       };
     case "customer_ready_for_collection":
       if (!validCollectionNumber(order.collectionNumber))
         throw Error("A collection email needs a valid bag number.");
       return {
-        title: "Your records are ready for collection!",
-        subject: `Ready for collection — bag #${order.collectionNumber} · ${order.reference}`,
+        title: "Ready for collection",
+        subject: `Your order is ready for collection - ${order.reference}`,
         paragraphs: [
-          `Hi ${order.name},`,
-          `Your order ${order.reference} is packed and ready for collection. Your collection / bag number is ${order.collectionNumber}.`,
-          "Please tell us this number when you collect so we can find your bag. You can show this email or your private order page too.",
-          "Collect at Rocks Cafe, 98 Arab Street, Level 2, Back Alley Entrance (199794). Please follow the collection timing agreed with us on Telegram or by phone. If you haven’t arranged a time yet, reply to this email and we’ll help.",
-          "Thanks for your patience. We can’t wait to get these records into your hands!",
+          greeting,
+          `Your records are ready. Your collection / bag number is ${order.collectionNumber}. Show this number when you collect.`,
+          "Collection: Rocks Cafe, 98 Arab Street, Level 2, Back Alley Entrance (199794). Open Tuesday - Sunday, 2:30 - 11:00 pm",
+          "To be safe, please message us on Telegram @kopirecords before you head down to collect.",
         ],
       };
     case "customer_order_dispatched":
       return {
-        title: "Your records are on their way!",
-        subject: `Your order has been mailed out — ${order.reference}`,
+        title: "Order dispatched",
+        subject: `Your order has been mailed out - ${order.reference}`,
         paragraphs: [
-          `Hi ${order.name},`,
-          `Your order ${order.reference} has been mailed out and is on its way to you.`,
-          "Please allow 2–3 days for delivery. Thank you for your patience while your records make their way to you!",
-          "If your order hasn’t arrived after 3 days, please drop us a message or reply to this email with your order reference. We’ll be happy to check on it for you.",
-          "You can also check your order using the private link below. We hope your next favourite is in this parcel!",
+          greeting,
+          "Your records have been mailed out. Please allow 2–3 days for delivery.",
+          "If they haven’t arrived after 3 days, reply to this email with your order reference and we’ll check on it.",
         ],
       };
     case "customer_order_completed":
       return {
-        title: "Thank you. Enjoy your records!",
-        subject: `Thank you for shopping with Kopi’s Records — ${order.reference}`,
+        title: "Thank you for your order",
+        subject: `Thank you for purchasing from Kopi's Records! - ${order.reference}`,
         paragraphs: [
-          `Hi ${order.name},`,
+          greeting,
           order.fulfilment === "collection"
-            ? `Your order ${order.reference} has been collected. Thank you for supporting Kopi’s Records!`
-            : `Your order ${order.reference} is now complete. Thank you for supporting Kopi’s Records!`,
-          "We hope you enjoy your records and find a new favourite in your rotation. Give them a spin, and we’ll see you on your next dig.",
-          "If there’s anything you need help with, just reply to this email. Happy listening!",
+            ? "Your order has been collected. Thanks for supporting Kopi’s Records!"
+            : "Your order is complete. Thanks for supporting Kopi’s Records!",
+          "Enjoy your records and happy listening. If you need any help, reply to this email.",
         ],
       };
     default:
       throw Error("Unknown order email kind.");
   }
 }
+
+// Only display HTTP(S) images. No server-side image fetching is needed.
+function coverUrl(value, orderLink) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const site = new URL(orderLink).origin;
+    const api = new URL(process.env.PUBLIC_API_URL || `${site}/api`);
+    let image = new URL(value.trim(), site);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(image.hostname);
+    if (image.pathname.startsWith("/covers/") &&
+        (local || image.origin === site)) {
+      image = new URL(api.href.replace(/\/$/, "") + image.pathname);
+    }
+    if (!["http:", "https:"].includes(image.protocol) || image.username || image.password) return null;
+    if (new URL(site).protocol === "https:" && local) return null;
+    return image.href;
+  } catch {
+    return null;
+  }
+}
+
 export function orderEmail(kind, order, link) {
-  const lines = order.items.map(
-    (item) =>
-      `${item.quantity} × ${item.artist ? item.artist + " — " : ""}${item.title} · ${money(item.price * item.quantity)}`,
-  );
+  const items = order.items.map((item) => ({
+    item,
+    cover: coverUrl(item.cover_image, link),
+    title: `${item.quantity} × ${item.artist ? item.artist + " — " : ""}${item.title}`,
+    format: item.medium || "Not recorded for this order",
+    variant: item.variant || "Not specified",
+  }));
+  const lines = items.flatMap(({ item, title, format, variant, cover }) => [
+    `${title} · ${money(item.price * item.quantity)}`,
+    `Format: ${format}`,
+    `Variant / pressing: ${variant}`,
+    `Product ID: ${item.id}`,
+    ...(cover ? [`Cover image: ${cover}`] : []),
+    `Variant / pressing: ${variant}`,
+    ...(item.preorder
+      ? [`Release Date: ${item.released || "To be announced"}`]
+      : []),
+  ]);
   const fulfilment =
     order.fulfilment === "delivery" ? "Delivery" : "Self collection";
-  const shop = kind === "shop_new_order",
-    ready = kind === "customer_ready_for_collection";
+  const shop = kind === "shop_new_order";
   const { title, subject, paragraphs } = emailContent(kind, order);
+  if (order.items.some((item) => item.preorder) && ["customer_payment_reported", "customer_payment_confirmed"].includes(kind)) {
+    const hold = "Your complete order, including any in-stock records, will be held until all preorder items are ready. Expected arrival dates are estimates. We’ll email you separately when the full order is ready for collection or has been dispatched.";
+    if (kind === "customer_payment_confirmed") paragraphs[2] = hold;
+    else paragraphs.push(hold);
+  }
   const summary = [
-    `Order: ${order.reference}`,
     ...(order.fulfilment === "collection" &&
     validCollectionNumber(order.collectionNumber)
       ? [`Collection / bag number: ${order.collectionNumber}`]
       : []),
     ...lines,
-    `Records: ${money(order.subtotal)}`,
+    `Subtotal (${order.items.reduce((count, item) => count + item.quantity, 0)} items): ${money(order.subtotal)}`,
     `${fulfilment}: ${order.delivery ? money(order.delivery) : "Free"}`,
     `Total: ${money(order.total)}`,
   ];
   const text = [
     title,
+    `Order: ${order.reference}`,
     "",
     ...paragraphs.flatMap((p) => [p, ""]),
     ...summary,
@@ -157,20 +193,32 @@ export function orderEmail(kind, order, link) {
     ...(shop
       ? []
       : [
-          "Keep this link private. Have a question? Reply to this email.",
+          "Please keep this link private. If you have any questions, feel free to drop us a message on telegram at @kopirecords or simply reply to this email.",
+          "Thank you once again!",
           "",
-          "With love,",
-          "Kopi’s Records",
+          "Cheers,",
+          "Michael from Kopi's Records",
         ]),
   ].join("\n");
   const safeLink = escape(link);
+  // Presentation tables keep artwork beside item details in email clients.
+  const itemHtml = items.map(({ item, title, format, variant, cover }) =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;border-collapse:collapse;margin:16px 0;border-bottom:1px solid #eee"><tr>${cover ? `<td width="96" valign="top" style="width:96px;vertical-align:top;padding:0 16px 16px 0"><img src="${escape(cover)}" alt="${escape(`${item.artist ? item.artist + " - " : ""}${item.title} cover`)}" width="80" height="80" style="display:block;width:80px;height:80px;object-fit:contain;border:0"></td>` : ""}<td valign="top" style="vertical-align:top;padding:0 0 16px;overflow-wrap:anywhere;word-break:break-word"><p style="margin:0 0 4px"><strong>${escape(title)}</strong></p><p style="margin:4px 0">Format: ${escape(format)}</p><p style="margin:4px 0">Variant / pressing: ${escape(variant)}</p>${item.preorder ? `<p style="margin:4px 0">Release Date: ${escape(item.released || "To be announced")}</p>` : ""}<p style="margin:4px 0">${escape(money(item.price * item.quantity))}</p></td></tr></table>`
+  ).join("");
+  const htmlSummary = [
+    ...(order.fulfilment === "collection" && validCollectionNumber(order.collectionNumber)
+      ? [`Collection / bag number: ${order.collectionNumber}`] : []),
+    `Subtotal (${order.items.reduce((count, item) => count + item.quantity, 0)} items): ${money(order.subtotal)}`,
+    `${fulfilment}: ${order.delivery ? money(order.delivery) : "Free"}`,
+    `Total: ${money(order.total)}`,
+  ];
   return {
     from: { name: "Kopi’s Records", address: shopEmail },
     to: shop ? shopEmail : { name: order.name, address: order.email },
     replyTo: shopEmail,
     subject,
     text,
-    html: `<div style="background:#15120f;padding:28px 16px;color:#efe8dc;font-family:Arial,sans-serif"><div style="max-width:580px;margin:auto;border:1px solid #493b2e;background:#211b16;border-radius:8px;padding:28px"><p style="font-size:12px;letter-spacing:2px;color:#cbb79c">KOPI’S RECORDS</p><h1 style="font:normal 28px/1.25 Georgia,serif">${escape(title)}</h1>${ready ? `<div style="background:#cbb79c;color:#15120f;text-align:center;padding:20px;border-radius:8px;margin:24px 0"><p style="font-size:12px;margin:0 0 8px">YOUR COLLECTION / BAG NUMBER</p><p style="font-size:40px;font-weight:bold;margin:0">${escape(order.collectionNumber)}</p></div>` : ""}${paragraphs.map((p) => `<p style="white-space:pre-wrap;line-height:1.8;color:#ddd3c6">${escape(p)}</p>`).join("")}<div style="border-top:1px solid #493b2e;border-bottom:1px solid #493b2e;padding:16px 0;margin:24px 0">${summary.map((p) => `<p style="line-height:1.6">${escape(p)}</p>`).join("")}</div><p><a href="${safeLink}" style="color:#cbb79c">${shop ? "Open admin" : "View your order"} ↗</a></p>${shop ? "" : `<p style="font-size:12px;line-height:1.7;color:#c0b4a3">Keep this link private. Have a question? Reply to this email.</p><p style="line-height:1.8;color:#cbb79c">With love,<br>Kopi’s Records</p>`}</div></div>`,
+    html: `<div style="max-width:600px;margin:0 auto;padding:24px;font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#222;background:#fff"><h1 style="font-size:22px;line-height:1.3">${escape(title)}</h1><p style="margin:8px 0 20px">Order: <strong>${escape(order.reference)}</strong></p>${paragraphs.map((p) => `<p style="white-space:pre-wrap">${escape(p)}</p>`).join("")}<div style="border-top:1px solid #ddd;border-bottom:1px solid #ddd;padding:12px 0;margin:20px 0">${itemHtml}${htmlSummary.map((p) => `<p style="margin:6px 0">${escape(p)}</p>`).join("")}</div><p><a href="${safeLink}" style="color:#174ea6">${shop ? "Open admin" : "View your order"}</a></p>${shop ? "" : `<p>Please keep this link private. If you have any questions, feel free to drop us a message on telegram at @kopirecords or simply reply to this email.</p><p>Thank you once again!</p><p>Cheers,<br>Michael from Kopi's Records</p>`}</div>`,
     disableFileAccess: true,
     disableUrlAccess: true,
   };
@@ -261,6 +309,8 @@ export function createOrderEmailDispatcher(
             job.kind === "shop_new_order"
               ? `${origin}/admin/orders`
               : `${origin}/order#token=${await issueLink(job.order_id)}`;
+          const preorders = await orderPreorders(pool, job.order_id);
+          order.items = order.items.map((item) => ({ ...item, preorder: item.preorder || preorders.some((p) => p.productId === Number(item.id)) }));
           const message = orderEmail(
             job.kind,
             { ...order, paymentStatus: row.status },

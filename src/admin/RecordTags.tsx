@@ -24,14 +24,18 @@ export default function RecordTags({
             <input
               type="checkbox"
               checked={selected.includes(tag.value)}
-              disabled={newListing && tag.value === "new_arrival"}
-              onChange={(e) =>
-                onChange(
-                  e.target.checked
-                    ? [...selected, tag.value]
-                    : selected.filter((value) => value !== tag.value),
-                )
-              }
+              disabled={tag.value === "new_arrival" && (newListing || selected.includes("preorder"))}
+              onChange={(e) => {
+                let next = e.target.checked
+                  ? [...new Set([...selected, tag.value])]
+                  : selected.filter((value) => value !== tag.value);
+                if (next.includes("preorder")) {
+                  next = next.filter((value) => value !== "new_arrival");
+                } else if (newListing && !next.includes("new_arrival")) {
+                  next.unshift("new_arrival");
+                }
+                onChange(next);
+              }}
               className="accent-[#cbb79c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#cbb79c]"
             />
             {tag.label}
@@ -40,8 +44,8 @@ export default function RecordTags({
       </div>
       <p className="mt-3 font-[Arial,sans-serif] text-xs leading-relaxed text-[#c0b4a3]">
         {newListing
-          ? "New listings are automatically tagged New arrival. You can remove it later when editing the record."
-          : "Select any tags that apply, or clear them all. These appear on the cover and affect shop sorting."}
+          ? "New listings default to New arrival. Selecting Preorder removes New arrival; clearing Preorder restores it."
+          : "Select the tags that apply. Preorder removes New arrival. Other tags can stay selected."}
       </p>
     </fieldset>
   );

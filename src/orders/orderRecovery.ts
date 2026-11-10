@@ -1,4 +1,6 @@
+import type { PreorderLine } from "../preorders/PreorderProgress";
 export type RecoveredOrder = {
+  preorders?: PreorderLine[];
   reference: string;
   subtotal: number;
   delivery: number;

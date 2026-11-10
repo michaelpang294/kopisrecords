@@ -1,3 +1,4 @@
+import { orderPreorders, assertPreordersReady } from "./preorders.mjs";
 import { expireOrders, manageOrder, transaction } from "./checkout.mjs";
 import { queueOrderEmails } from "./order-emails.mjs";
 const statuses = [
@@ -45,9 +46,33 @@ export function adminOrderRoutes(app, pool, requireAdmin, orderEmails) {
         args.push(status);
       }
       if (q) {
-        where +=
-          " AND (JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.reference')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.name')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.contact')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.email')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.telegram')) LIKE ? OR JSON_UNQUOTE(JSON_EXTRACT(o.details,'$.collectionNumber')) LIKE ?)";
-        args.push(...Array(6).fill("%" + q + "%"));
+        where += `
+          AND (
+            JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.reference')) LIKE ?
+            OR JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.name')) LIKE ?
+            OR JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.contact')) LIKE ?
+            OR JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.email')) LIKE ?
+            OR JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.telegram')) LIKE ?
+            OR JSON_UNQUOTE(JSON_EXTRACT(o.details, '$.collectionNumber')) LIKE ?
+            OR EXISTS (
+              SELECT 1
+              FROM JSON_TABLE(
+                o.details,
+                '$.items[*]' COLUMNS (
+                  title VARCHAR(500) PATH '$.title',
+                  artist VARCHAR(500) PATH '$.artist' NULL ON EMPTY
+                )
+              ) AS ordered_item
+              WHERE LOWER(ordered_item.title) LIKE ?
+                OR LOWER(ordered_item.artist) LIKE ?
+            )
+          )
+        `;
+
+        args.push(
+          ...Array(6).fill("%" + q + "%"),
+          ...Array(2).fill("%" + q.toLowerCase() + "%"),
+        );
       }
       const [count] = await pool.execute(
         "SELECT COUNT(*) AS total FROM checkout_orders o LEFT JOIN checkout_fulfilment f ON f.order_id=o.id" +
@@ -90,7 +115,7 @@ export function adminOrderRoutes(app, pool, requireAdmin, orderEmails) {
         "SELECT kind,status,attempts,last_error,sent_at FROM checkout_emails WHERE order_id = ? ORDER BY created_at,kind",
         [req.params.id],
       );
-      res.json({ ...serialize(rows[0]), holds, events, emails });
+      res.json({ ...serialize(rows[0]), holds, events, emails, preorders: await orderPreorders(pool, req.params.id) });
     } catch (e) {
       next(e);
     }
@@ -184,6 +209,8 @@ export function adminOrderRoutes(app, pool, requireAdmin, orderEmails) {
           throw Error(
             "That status change is not allowed for this order. Refresh and review its fulfilment method.",
           );
+        if (["ready_for_collection", "dispatched"].includes(action))
+          await assertPreordersReady(db, req.params.id);
         if (action === "ready_for_collection") {
           // The shared reservation lock serializes assignments across admins.
           // Completed orders retain their number, but it can then be reused.

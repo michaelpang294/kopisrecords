@@ -1,3 +1,4 @@
+import { hasPreorderTag, registerPreorders, orderPreorders } from "./preorders.mjs";
 import { queueOrderEmails } from "./order-emails.mjs";
 import { grantRecovery } from "./order-access.mjs";
 import QRCode from "qrcode";
@@ -177,7 +178,7 @@ export function checkoutRoutes(app, pool, emails) {
           return { ...(await orderResponse(db, existing[0])), recoveryToken };
         }
         const [stock] = await db.execute(
-          `SELECT id,title,artist,price,stock FROM stock WHERE id IN (${b.items.map(() => "?").join(",")}) ORDER BY id FOR UPDATE`,
+          `SELECT id,title,artist,price,stock,medium,variant,cover_image,tags,released FROM stock WHERE id IN (${b.items.map(() => "?").join(",")}) ORDER BY id FOR UPDATE`,
           b.items.map((i) => i.id),
         );
         for (const product of stock)
@@ -193,6 +194,11 @@ export function checkoutRoutes(app, pool, emails) {
             id: item.id,
             title: p.title,
             artist: p.artist,
+            preorder: hasPreorderTag(p.tags),
+            medium: p.medium || "",
+            variant: p.variant || "",
+            released: p.released || "",
+            cover_image: p.cover_image || "",
             quantity: item.quantity,
             price,
           };
@@ -232,6 +238,7 @@ export function checkoutRoutes(app, pool, emails) {
           "INSERT INTO checkout_orders (id,fingerprint,details) VALUES (?,?,?)",
           [b.requestId, fingerprint, JSON.stringify(order)],
         );
+        await registerPreorders(db, b.requestId, lines);
         for (const line of lines)
           await db.execute(
             "INSERT INTO checkout_reservations (order_id,product_id,quantity,expires_at) VALUES (?,?,?,?)",
@@ -374,6 +381,7 @@ export async function orderResponse(db, row) {
   } = order;
   return {
     ...publicOrder,
+    preorders: await orderPreorders(db, row.id),
     status,
     serverTime: new Date().toISOString(),
     qr:

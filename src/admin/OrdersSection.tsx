@@ -1,3 +1,4 @@
+import PreorderProgress, { type PreorderLine } from "../preorders/PreorderProgress";
 import OrderLink from "../orders/OrderLink";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { adminJson } from "./adminApi";
@@ -20,6 +21,7 @@ type Line = {
   price: number;
 };
 type Order = {
+  preorders?: PreorderLine[];
   id: string;
   reference: string;
   name: string;
@@ -157,7 +159,10 @@ export default function OrdersSection() {
   function search(e: FormEvent) {
     e.preventDefault();
     setQuery(draft.trim());
+    setStatus(""); // Search across all order statuses
     setPage(1);
+    setSelected("");
+    setVersion((value) => value + 1);
   }
   function choose(action: string) {
     setPending(action);
@@ -257,7 +262,7 @@ export default function OrdersSection() {
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Reference, bag number, name, email or contact"
+              placeholder="Album, artist, reference, bag number, name or contact"
               maxLength={120}
               className={`${field} w-full min-w-0`}
             />
@@ -490,6 +495,7 @@ export default function OrdersSection() {
                   <OrderLink token={issuedLink.token} />
                 </div>
               )}
+              <PreorderProgress preorders={order.preorders} items={order.items} active={order.status === "paid" || order.status === "payment_reported"} />
               <h4 className="font-marcellus text-xl">Records</h4>
               <ul className="mt-2 divide-y divide-white/10">
                 {order.items.map((i) => (
@@ -566,6 +572,7 @@ export default function OrdersSection() {
                 )}
                 {order.status === "paid" && (
                   <button
+                    disabled={order.preorders?.some((item) => item.status !== "ready")}
                     onClick={() =>
                       choose(
                         order.fulfilment === "collection"

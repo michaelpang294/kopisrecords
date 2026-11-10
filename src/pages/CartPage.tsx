@@ -1,3 +1,5 @@
+import { isPreorder } from "../scripts/preorder";
+import { mixedOrderNotice } from "../preorders/PreorderProgress";
 import { API } from "../api";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -554,6 +556,7 @@ export default function CartPage() {
                 Delivery is not included in this subtotal. Adding records to
                 your cart does not reserve stock.
               </p>
+              {lines.some((line) => isPreorder(line.product)) && <p className="mt-5 rounded-lg border border-[#cbb79c]/30 p-4 text-sm leading-7 text-[#c0b4a3]">{mixedOrderNotice}</p>}
               <Link
                 to="/checkout"
                 className={`${type.ui} ${focus} mt-6 flex min-h-11 items-center justify-center gap-3 rounded-md bg-[#cbb79c] px-4 py-3 text-[#15120f] hover:bg-[#dfcdb3]`}

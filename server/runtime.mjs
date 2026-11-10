@@ -1,3 +1,4 @@
+import { ensurePreorders } from "./preorders.mjs";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import mysql from "mysql2";
@@ -43,6 +44,7 @@ export async function prepareSchema(pool) {
   await pool.execute("SELECT id,title,artist,price,genre,cover_image,description,medium,variant,released,barcode,stock,tags FROM stock LIMIT 1");
   await ensureOrders(pool);
   await ensureOrderEmails(pool);
+  await ensurePreorders(pool);
   await ensureRecordRequests(pool);
   await ensureRestockAlerts(pool);
   await ensureRestockOptins(pool);

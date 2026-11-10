@@ -11,5 +11,7 @@ export type Product = {
   barcode: string;
   stock: number;
   variant: string;
+  preorderStatus?: string;
+  expectedArrival?: string | null;
   tags?: string[] | string | null;
 };

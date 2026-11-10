@@ -1,3 +1,4 @@
+import { arrivalDate, progressLabels, mixedOrderNotice } from "../preorders/PreorderProgress";
 import { API } from "../api";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
@@ -268,6 +269,12 @@ function ProductDetails({ id }: { id?: string }) {
                 {/* QUANTITY + CART */}
                 <div className="col-span-2 row-start-2 min-w-0 rounded-md border border-white/10 bg-[#211b16]/95 p-3 sm:p-4 lg:mt-6 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
                   <form onSubmit={addToCart}>
+                {preorder && <div className="mb-4 rounded-lg border border-[#cbb79c]/30 p-4 text-sm leading-7 text-[#c0b4a3]">
+                  <p className="text-[#cbb79c]">{progressLabels[product.preorderStatus || "awaiting_release"]}</p>
+                  <p>Expected date of arrival: {arrivalDate(product.expectedArrival)}</p>
+                  <p className="mt-2 text-xs">{mixedOrderNotice}</p>
+                </div>}
+
                     <div className="mb-2 flex items-center justify-between gap-3 lg:mb-3">
                       <label htmlFor="record-quantity" className={type.ui}>
                         Quantity

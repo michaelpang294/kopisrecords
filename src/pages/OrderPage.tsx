@@ -1,3 +1,4 @@
+import PreorderProgress from "../preorders/PreorderProgress";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { API } from "../admin/adminApi";
@@ -133,7 +134,7 @@ export default function OrderPage() {
     order?.status === "payment_reported"
       ? "Thank you! Please give us 1–2 hours to verify your transfer manually. Your order and payment update are saved. We’ll email you once confirmed and contact you on Telegram or by phone about collection or delivery. You don’t need to pay again."
       : order?.status === "paid"
-        ? "Your payment has been confirmed. We’ll contact you about collection or delivery."
+        ? (order.preorders?.some((item) => item.status !== "ready") ? "Your payment has been confirmed. Your complete order is on hold until all preorder items are ready." : "Your payment has been confirmed. We’ll contact you about collection or delivery.")
         : order?.status === "ready_for_collection"
           ? "Your records are packed and ready for collection. Tell us your collection / bag number when you arrive, or show this page. Please follow the collection timing agreed with the shop."
           : order?.status === "dispatched"
@@ -273,6 +274,7 @@ export default function OrderPage() {
                     {reportError}
                   </p>
                 )}
+                <PreorderProgress preorders={order.preorders} items={order.items} active={["paid", "payment_reported", "awaiting_payment_confirmation"].includes(order.status)} />
                 <OrderLink token={token} />
               </section>
               <section className="rounded-xl border border-white/10 bg-[#211b16]/95 p-5 sm:p-6">

@@ -148,7 +148,7 @@ test("reporting via checkout or private link sends customer/shop once; paid admi
   assert.equal(shop.from.address, "kopisrecords@gmail.com");
   assert.equal(shop.to, "kopisrecords@gmail.com");
   assert.match(review.text, /1–2 hours/);
-  assert.match(review.text, /no need to pay again/);
+  assert.match(review.text, /We’ll email you once payment is confirmed/);
   assert.match(shop.text, /Telegram: @customer/);
   assert.match(shop.text, /Phone: \+65 9123 4567/);
   const token = review.text.match(/\/order#token=([a-f0-9]{64})/)[1];
@@ -190,8 +190,8 @@ test("reporting via checkout or private link sends customer/shop once; paid admi
   assert.equal(f.sent.length, 3);
   const confirmed = f.sent.find((m) => m.subject.includes("confirmed"));
   assert.match(confirmed.text, /payment.*has been received/s);
-  assert.match(confirmed.text, /Telegram or by phone/);
-  assert.match(confirmed.text, /self collection or delivery/);
+  assert.match(confirmed.text, /Please wait for that email/);
+  assert.match(confirmed.text, /Rocks Cafe/);
   assert.match(confirmed.text, /\/order#token=[a-f0-9]{64}/);
   await f.call(
     `/api/admin/orders/${b.requestId}/action`,
@@ -365,7 +365,7 @@ test("a fast admin confirmation supersedes the unsent review email; expired repo
   );
   assert(f.sent.some((m) => m.subject.includes("confirmed")));
   assert(
-    f.sent.some((m) => m.text.includes("already been confirmed in admin")),
+    f.sent.some((m) => m.text.includes("already confirmed in admin")),
   );
   f.mailer.ready = false;
   const expired = body();
@@ -415,9 +415,9 @@ test("dispatch sends the delivery estimate and follow-up contact, then completio
   assert.equal(mail.replyTo, "kopisrecords@gmail.com");
   assert.match(mail.subject, /has been mailed out/);
   assert.match(mail.text, /allow 2–3 days for delivery/);
-  assert.match(mail.text, /patience/);
-  assert.match(mail.text, /hasn’t arrived after 3 days/);
-  assert.match(mail.text, /drop us a message or reply/);
+  assert.match(mail.text, /Your records have been mailed out/);
+  assert.match(mail.text, /haven’t arrived after 3 days/);
+  assert.match(mail.text, /reply to this email/);
   assert(!mail.text.includes("Collection / bag number:"));
   const token = mail.text.match(/\/order#token=([a-f0-9]{64})/)[1];
   const receipt = await f.call("/api/order-recovery", undefined, "", { Authorization: "Bearer " + token });
@@ -434,8 +434,8 @@ test("dispatch sends the delivery estimate and follow-up contact, then completio
   const thanks = f.sent.filter((m) => m.messageId.includes("customer_order_completed"));
   assert.equal(thanks.length, 1);
   assert.equal(thanks[0].to.address, "customer@example.com");
-  assert.match(thanks[0].text, /Thank you for supporting/);
-  assert.match(thanks[0].text, /enjoy your records/);
+  assert.match(thanks[0].text, /Thanks for supporting/);
+  assert.match(thanks[0].text, /Enjoy your records/);
   assert(!thanks[0].text.includes("has been collected"));
   assert.equal(f.pool.state.stock, stock);
   assert.equal(f.pool.state.events.filter((e) => e.action === "dispatched").length, 1);

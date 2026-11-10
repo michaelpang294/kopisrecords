@@ -101,6 +101,7 @@ test("production settings reject local email links and accept the existing hoste
 test("custom local cover URLs become hosted API URLs, while remote images remain unchanged", async (t) => {
   const pool = { async execute(sql) {
     if (sql.includes("SUM(quantity)")) return [[{ held: 0 }]];
+    if (sql === "SELECT product_id,status,expected_arrival,version FROM product_preorders") return [[]];
     if (sql.startsWith("SELECT * FROM stock")) return [[
       { id: 1, stock: 1, price: "40.00", cover_image: "http://localhost:3001/covers/my-album.jpg" },
       { id: 2, stock: 1, price: "40.00", cover_image: "/covers/another.jpg" },

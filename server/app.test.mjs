@@ -12,6 +12,7 @@ test("HTTP contract matches the existing React shop and admin forms", async (t) 
     async execute(sql, values = []) {
       if (sql.startsWith("SELECT COALESCE(SUM(quantity)"))
         return [[{ held: 0 }]];
+      if (sql === "SELECT product_id,status,expected_arrival,version FROM product_preorders") return [[]];
       const expected = pending.shift();
       assert.ok(expected, `Unexpected database call: ${sql}`);
       assert.match(sql, expected.sql);
@@ -192,14 +193,13 @@ test("HTTP contract matches the existing React shop and admin forms", async (t) 
     sql: /^INSERT INTO stock/,
     values: [
       ...expectedValues,
-      JSON.stringify(["new_arrival", "recommended", "sale", "preorder"]),
+      JSON.stringify(["recommended", "sale", "preorder"]),
     ],
     result: { insertId: 8 },
   });
   res = await fetch(`${base}/api/stock`, send("POST", taggedForm));
   assert.equal(res.status, 201);
   assert.deepEqual((await res.json()).tags, [
-    "new_arrival",
     "recommended",
     "sale",
     "preorder",

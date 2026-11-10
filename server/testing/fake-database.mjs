@@ -1,5 +1,10 @@
 export function database(stock = 1) {
   const state = {
+    preorders: new Map(),
+    preorderItems: new Map(),
+    preorderEmails: new Map(),
+    products: new Map(),
+    productTags: ["recommended"],
     orders: new Map(),
     emails: new Map(),
     alerts: new Map(),
@@ -13,6 +18,42 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (state.products.size && sql.startsWith("SELECT id,title")) return [[...state.products.values()].filter((p)=>args.includes(p.id)).map((p)=>structuredClone(p))];
+    if (state.products.size && sql.startsWith("SELECT * FROM stock WHERE id")) return [state.products.has(args[0])?[structuredClone(state.products.get(args[0]))]:[]];
+    if (state.products.size && sql.startsWith("UPDATE stock SET stock = stock -")) {const p=state.products.get(args[1]);if(!p||p.stock<args[2])return [{affectedRows:0}];p.stock-=args[0];return [{affectedRows:1}];}
+
+    if (sql.startsWith("SELECT m.product_id")) return [[...state.preorderItems.values()].filter((m) => m.order_id===args[0]).map((m) => ({ product_id:m.product_id,...state.preorders.get(m.product_id) }))];
+    if (sql === "SELECT product_id,status,expected_arrival,version FROM product_preorders") return [[...state.preorders.values()].map((r)=>structuredClone(r))];
+    if (sql.startsWith("INSERT IGNORE INTO product_preorders")) {
+      if (args.length && !state.preorders.has(args[0])) state.preorders.set(args[0],{product_id:args[0],status:'awaiting_release',expected_arrival:null,version:0});
+      return [{affectedRows:1}];
+    }
+    if (sql.startsWith("INSERT IGNORE INTO checkout_preorder_items")) {
+      if(args.length) state.preorderItems.set(args[0]+'|'+args[1],{order_id:args[0],product_id:args[1]});
+      return [{affectedRows:1}];
+    }
+    if (sql.startsWith("SELECT product_id,status,expected_arrival,version FROM product_preorders WHERE")) return [state.preorders.has(args[0])?[structuredClone(state.preorders.get(args[0]))]:[]];
+    if (sql.startsWith("UPDATE product_preorders SET")) {Object.assign(state.preorders.get(args[3]),{status:args[0],expected_arrival:args[1],version:args[2]});return [{affectedRows:1}];}
+    if (sql.startsWith("SELECT o.id,o.details FROM checkout_preorder_items")) return [[...state.preorderItems.values()].filter((m)=>m.product_id===args[0]).flatMap((m)=>{const o=state.orders.get(m.order_id);return o&&['payment_reported','paid'].includes(o.status)&&['payment_reported','paid'].includes(state.fulfilment.get(o.id)?.status||state.fulfilment.get(o.id)||o.status)?[structuredClone(o)]:[]})];
+    if (sql.startsWith("INSERT IGNORE INTO preorder_emails")) {
+      const key=args[0]+'|'+args[1]+'|'+args[2];if(state.preorderEmails.has(key))return [{affectedRows:0}];
+      state.preorderEmails.set(key,{order_id:args[0],product_id:args[1],version:args[2],payload:args[3],status:'pending',attempts:0,next_attempt_at:new Date(0)});return [{affectedRows:1}];
+    }
+    if (sql.startsWith("SELECT order_id,product_id,version,payload FROM preorder_emails")) return [[...state.preorderEmails.values()].filter((j)=>['pending','failed'].includes(j.status)&&j.attempts<5&&+new Date(j.next_attempt_at)<=Date.now()).map((r)=>structuredClone(r))];
+    if (sql.startsWith("SELECT o.details,o.status,COALESCE")) {const o=state.orders.get(args[1]),p=state.preorders.get(args[0]);return [o&&p?[{...structuredClone(o),fulfilment_status:state.fulfilment.get(o.id)?.status||state.fulfilment.get(o.id)||o.status,version:p.version}]:[]]}
+    if (sql.startsWith("SELECT COUNT(*) AS total FROM preorder_emails")) return [[{total:[...state.preorderEmails.values()].filter(j=>j.status==='failed').length}]];
+    if (sql.startsWith("UPDATE preorder_emails")) {
+      if(sql.includes("SET status='pending'")){for(const j of state.preorderEmails.values())if(j.status==='failed')Object.assign(j,{status:'pending',attempts:0,next_attempt_at:new Date(0)});return [{affectedRows:1}];}
+      const sending=sql.includes("SET status='sending'"),failed=sql.includes("SET status='failed'");
+      const [id,product,version,claim]=sending?args.slice(1):failed?args.slice(1):args;
+      const j=state.preorderEmails.get(id+'|'+product+'|'+version);if(!j)return [{affectedRows:0}];
+      if(sending){if(!['pending','failed'].includes(j.status)||j.attempts>=5||+new Date(j.next_attempt_at)>Date.now())return [{affectedRows:0}];Object.assign(j,{status:'sending',claim:args[0],attempts:j.attempts+1});}
+      else if(j.claim!==claim)return [{affectedRows:0}];
+      else if(failed)Object.assign(j,{status:'failed',last_error:args[0],next_attempt_at:new Date(Date.now()+60000)});
+      else Object.assign(j,{status:sql.includes("SET status='sent'")?'sent':'skipped'});
+      return [{affectedRows:1}];
+    }
+    if(sql === "SELECT * FROM stock ORDER BY id DESC") return [[{id:1,title:'Test',artist:'Artist',medium:'Vinyl',variant:'Test pressing',price:'40.00',stock:state.stock,tags:state.productTags}]];
     if (sql.startsWith("SELECT * FROM restock_optins"))
       return [state.optins.has(args[0]+"|"+args[1]) ? [structuredClone(state.optins.get(args[0]+"|"+args[1]))] : []];
     if (sql.startsWith("INSERT INTO restock_optins")) {
@@ -304,7 +345,7 @@ export function database(stock = 1) {
             artist: "Artist",
             price: "40.00",
             stock: state.stock,
-            tags: ["recommended"],
+            tags: state.productTags,
           },
         ],
       ];
@@ -321,6 +362,7 @@ export function database(stock = 1) {
             artist: "Artist",
             price: "40.00",
             stock: state.stock,
+            tags: state.productTags,
           },
         ],
       ];

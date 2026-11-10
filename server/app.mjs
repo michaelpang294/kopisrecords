@@ -1,3 +1,4 @@
+import { preorderCatalog, preorderRoutes, createPreorderDispatcher } from "./preorders.mjs";
 import { createOrderEmailDispatcher } from "./order-emails.mjs";
 import { createRestockDispatcher, restockAlertRoutes } from "./restock-alerts.mjs";
 import { adminRequestRoutes } from "./admin-requests.mjs";
@@ -126,7 +127,11 @@ function validateProduct(body, creating = false) {
       throw new Error("Tags must be an array of supported record tags.");
     }
     tags = [...new Set(tags)];
-    if (creating && !tags.includes("new_arrival")) tags.unshift("new_arrival");
+    if (tags.includes("preorder")) {
+      tags = tags.filter((tag) => tag !== "new_arrival");
+    } else if (creating && !tags.includes("new_arrival")) {
+      tags.unshift("new_arrival");
+    }
     product.tags = JSON.stringify(tags);
   }
   return product;
@@ -223,6 +228,12 @@ export function createApp(pool, origins, options = {}) {
     issueLink: (id) => grantRecovery(pool, id),
   });
   app.locals.orderEmails = orderEmails;
+  const preorderEmails = createPreorderDispatcher(pool, {
+    mailer: options.preorderMailer || options.orderMailer,
+    siteUrl: options.orderSiteUrl,
+    issueLink: (id) => grantRecovery(pool, id),
+  });
+  app.locals.preorderEmails = preorderEmails;
   const requireAdmin = installAdminAuth(app, options);
   const restockAlerts = createRestockDispatcher(pool, {
     transaction,
@@ -233,6 +244,7 @@ export function createApp(pool, origins, options = {}) {
   });
   app.locals.restockAlerts = restockAlerts;
   restockAlertRoutes(app, pool, { transaction, availableStock, dispatcher: restockAlerts, requireAdmin });
+  preorderRoutes(app, pool, requireAdmin, { transaction, dispatcher: preorderEmails });
   adminOrderRoutes(app, pool, requireAdmin, orderEmails);
   adminRequestRoutes(app, pool, requireAdmin);
   recoveryRoutes(app, pool, {
@@ -256,7 +268,8 @@ export function createApp(pool, origins, options = {}) {
       const [rows] = await pool.execute("SELECT * FROM stock ORDER BY id DESC");
       if (req.query.inventory !== "on-hand")
         for (const row of rows) row.stock = await availableStock(pool, row);
-      res.json(rows.map((row) => productForJson(row, options.publicApiUrl)));
+      const catalog = await preorderCatalog(pool);
+      res.json(rows.map((row) => ({ ...productForJson(row, options.publicApiUrl), ...catalog.get(Number(row.id)) })));
     },
   );
 
@@ -275,7 +288,8 @@ export function createApp(pool, origins, options = {}) {
         return res.status(404).json({ error: "Product not found." });
       if (req.query.inventory !== "on-hand")
         rows[0].stock = await availableStock(pool, rows[0]);
-      res.json(productForJson(rows[0], options.publicApiUrl));
+      const catalog = await preorderCatalog(pool);
+      res.json({ ...productForJson(rows[0], options.publicApiUrl), ...catalog.get(id) });
     },
   );
 

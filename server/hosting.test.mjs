@@ -7,6 +7,7 @@ test("Passenger full and stripped paths use one /api prefix and preserve queries
   const calls = [];
   const pool = {
     async execute(sql, params = []) {
+      if (sql === "SELECT product_id,status,expected_arrival,version FROM product_preorders") return [[]];
       calls.push({ sql, params });
       if (sql === "SELECT 1 AS ok") return [[{ ok: 1 }]];
       if (sql.includes("SUM(quantity)")) return [[{ held: 0 }]];
