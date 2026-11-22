@@ -1,5 +1,6 @@
 export function database(stock = 1) {
   const state = {
+    invoices: new Map(),
     preorders: new Map(),
     preorderItems: new Map(),
     preorderEmails: new Map(),
@@ -18,6 +19,34 @@ export function database(stock = 1) {
   };
   let tail = Promise.resolve();
   const execute = async (sql, args = []) => {
+    if (sql.startsWith("INSERT INTO custom_invoices")) {
+      const now=new Date().toISOString();
+      state.invoices.set(args[0],{id:args[0],draft:args[1],status:'draft',version:1,email_status:'not_queued',email_attempts:0,email_next_attempt:new Date(0),created_at:now,updated_at:now});
+      return [{affectedRows:1}];
+    }
+    if (sql.startsWith("SELECT * FROM custom_invoices")) return [state.invoices.has(args[0])?[structuredClone(state.invoices.get(args[0]))]:[]];
+    if (sql.startsWith("SELECT i.*") || sql.startsWith("SELECT COUNT(*) AS total FROM custom_invoices")) {
+      let rows=[...state.invoices.values()].map(i=>({...i,order_status:state.orders.get(i.id)?.status,fulfilment_status:state.fulfilment.get(i.id)||state.orders.get(i.id)?.status}));
+      if(sql.includes("WHERE i.id=?"))rows=rows.filter(i=>i.id===args[0]);
+      let index=0;
+      if(sql.includes("AND i.status=?")){rows=rows.filter(i=>i.status===args[index]);index++;}
+      if(sql.includes(" LIKE ?")){const q=args[index].replaceAll('%','').toLowerCase();rows=rows.filter(i=>{const d=JSON.parse(i.draft);return [d.customerName,d.email,d.platform,d.externalReference,'KR'+i.id.replaceAll('-','').slice(0,20).toUpperCase()].some(v=>String(v||'').toLowerCase().includes(q));});}
+      if(sql.startsWith('SELECT COUNT'))return [[{total:rows.length}]];
+      const offset=Number(sql.match(/OFFSET (\d+)/)?.[1]||0);
+      return [structuredClone(rows.slice(offset,offset+30))];
+    }
+    if(sql.startsWith('SELECT id FROM custom_invoices'))return [[...state.invoices.values()].filter(i=>i.status==='sent'&&(i.email_status==='pending'||i.email_status==='failed'&&i.email_attempts<5)&&+new Date(i.email_next_attempt)<=Date.now()).slice(0,10).map(i=>({id:i.id}))];
+    if(sql.startsWith('UPDATE custom_invoices')) {
+      if(sql.includes('SET draft=')){const i=state.invoices.get(args[1]);i.draft=args[0];i.version++;return [{affectedRows:1}];}
+      if(sql.includes("SET status='sent'")){Object.assign(state.invoices.get(args[1]),{status:'sent',version:state.invoices.get(args[1]).version+1,sent_at:new Date().toISOString(),expires_at:args[0],email_status:'pending',email_attempts:0,email_next_attempt:new Date(0),email_error:null});return [{affectedRows:1}];}
+      if(sql.includes("SET status='void'")){const i=state.invoices.get(args[0]);i.status='void';i.version++;return [{affectedRows:1}];}
+      if(sql.includes("SET email_status='pending'")){Object.assign(state.invoices.get(args[0]),{email_status:'pending',email_attempts:0,email_next_attempt:new Date(0),email_error:null});return [{affectedRows:1}];}
+      if(sql.includes("SET email_status='sending'")){const i=state.invoices.get(args[1]);if(!i||i.status!=='sent'||!['pending','failed'].includes(i.email_status)||i.email_attempts>=5||+new Date(i.email_next_attempt)>Date.now())return [{affectedRows:0}];Object.assign(i,{email_status:'sending',email_claim:args[0],email_attempts:i.email_attempts+1});return [{affectedRows:1}];}
+      const failed=sql.includes("SET email_status='failed'");const [id,claim]=failed?args.slice(1):args;const i=state.invoices.get(id);if(!i||i.email_claim!==claim)return [{affectedRows:0}];
+      Object.assign(i,{email_status:failed?'failed':sql.includes("SET email_status='sent'")?'sent':'skipped',email_error:failed?args[0]:null});
+      if(failed)i.email_next_attempt=new Date(Date.now()+60000);else i.email_sent_at=new Date().toISOString();
+      return [{affectedRows:1}];
+    }
     if (state.products.size && sql.startsWith("SELECT id,title")) return [[...state.products.values()].filter((p)=>args.includes(p.id)).map((p)=>structuredClone(p))];
     if (state.products.size && sql.startsWith("SELECT * FROM stock WHERE id")) return [state.products.has(args[0])?[structuredClone(state.products.get(args[0]))]:[]];
     if (state.products.size && sql.startsWith("UPDATE stock SET stock = stock -")) {const p=state.products.get(args[1]);if(!p||p.stock<args[2])return [{affectedRows:0}];p.stock-=args[0];return [{affectedRows:1}];}
@@ -310,12 +339,12 @@ export function database(stock = 1) {
       for (const o of state.orders.values())
         if (
           o.status === "awaiting_payment_confirmation" &&
-          state.holds.some(
+          (Boolean(state.invoices.get(o.id)?.expires_at && +new Date(state.invoices.get(o.id).expires_at)<=Date.now()) || state.holds.some(
             (h) =>
               h.order_id === o.id &&
               h.state === "active" &&
               h.expires_at <= Date.now(),
-          )
+          ))
         )
           o.status = "expired";
       return [{}];

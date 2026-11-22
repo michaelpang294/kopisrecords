@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import PreorderProgress, { type PreorderLine } from "../preorders/PreorderProgress";
 import OrderLink from "../orders/OrderLink";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -17,10 +18,14 @@ type Line = {
   id: number;
   title: string;
   artist?: string;
+  medium?: string;
+  variant?: string;
+  cover_image?: string;
   quantity: number;
   price: number;
 };
 type Order = {
+  source?: "invoice";
   preorders?: PreorderLine[];
   id: string;
   reference: string;
@@ -63,9 +68,11 @@ const date = (value: string) =>
     timeStyle: "short",
   });
 export default function OrdersSection() {
-  const [status, setStatus] = useState("payment_reported"),
-    [draft, setDraft] = useState(""),
-    [query, setQuery] = useState(""),
+  const [params] = useSearchParams();
+  const initialQuery = (params.get("q") || "").trim().slice(0, 120);
+  const [status, setStatus] = useState(initialQuery ? "" : "payment_reported"),
+    [draft, setDraft] = useState(initialQuery),
+    [query, setQuery] = useState(initialQuery),
     [page, setPage] = useState(1),
     [version, setVersion] = useState(0),
     [selected, setSelected] = useState("");
@@ -310,6 +317,15 @@ export default function OrdersSection() {
                   <span className="text-xs">{formatPrice(row.total)}</span>
                 </span>
                 <span className="mt-3 block text-sm">{row.name}</span>
+                <span className="mt-3 block space-y-1 text-xs leading-relaxed text-[#c0b4a3]">
+                  {row.items.map((item) => (
+                    <span key={item.id} className="block break-words">
+                      {[item.artist, item.title, item.variant]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  ))}
+                </span>
                 <span className="mt-1 block text-xs text-[#c0b4a3]">
                   {row.items.reduce((sum, i) => sum + i.quantity, 0)} records ·{" "}
                   {row.fulfilment === "collection" ? "Collection" : "Delivery"}
@@ -317,6 +333,7 @@ export default function OrdersSection() {
                 <span className="mt-3 inline-block rounded-full border border-[#cbb79c]/25 px-2 py-1 text-[11px] text-[#cbb79c]">
                   {labels[row.status] || row.status}
                 </span>
+                {row.source === "invoice" && <span className="ml-2 inline-block rounded-full border border-white/20 px-2 py-1 text-[11px]">Custom invoice</span>}
                 {row.collectionNumber && (
                   <span className="mt-2 block text-sm text-[#efe8dc]">
                     Bag #{row.collectionNumber}
@@ -384,6 +401,7 @@ export default function OrdersSection() {
               <p className="mt-2 text-xs text-[#c0b4a3]">
                 {date(order.createdAt)} SGT
               </p>
+              {order.source === "invoice" && <p className="mt-4 rounded-lg border border-[#cbb79c]/30 p-3 text-xs text-[#cbb79c]">Custom invoice · manual records. Confirming payment does not deduct website stock.</p>}
               {order.collectionNumber && (
                 <div className="mt-5 rounded-lg border border-[#cbb79c]/40 bg-[#cbb79c]/10 p-4">
                   <p className="text-xs uppercase tracking-wider text-[#c0b4a3]">
@@ -508,6 +526,7 @@ export default function OrdersSection() {
                       <span className="mt-1 block text-xs text-[#c0b4a3]">
                         {i.artist ? `${i.artist} · ` : ""}
                         {i.quantity} × {formatPrice(i.price)}
+                        {order.source === "invoice" && <span className="mt-1 block">{i.medium} · {i.variant || "Pressing not specified"}</span>}
                       </span>
                     </span>
                     <span className="shrink-0">
@@ -536,14 +555,14 @@ export default function OrdersSection() {
                 <p className="mt-5 text-xs leading-relaxed text-[#c0b4a3]">
                   Customer reported payment. Check your actual bank receipt
                   against this reference and total before confirming. Their
-                  copies remain reserved.
+                  {order.source === "invoice" ? "custom records must be set aside manually." : "copies remain reserved."}
                 </p>
               )}
               {order.status === "awaiting_payment_confirmation" && (
                 <p className="mt-5 text-xs text-[#c0b4a3]">
                   Waiting for the customer to report payment.{" "}
                   {order.expiresAt
-                    ? `Hold ends ${date(order.expiresAt)} SGT.`
+                    ? `${order.source === "invoice" ? "Invoice expires" : "Hold ends"} ${date(order.expiresAt)} SGT.`
                     : "Legacy order: no reservation."}
                 </p>
               )}
@@ -606,7 +625,7 @@ export default function OrdersSection() {
                   <ul className="space-y-2 text-xs text-[#c0b4a3]">
                     {order.events?.map((event, i) => (
                       <li key={i}>
-                        {labels[event.action] || event.action} ·{" "}
+                        {event.action === "invoice_issued" ? "Custom invoice issued" : labels[event.action] || event.action} ·{" "}
                         {date(event.created_at)} SGT
                       </li>
                     ))}
@@ -641,9 +660,9 @@ export default function OrdersSection() {
         </p>
         <p className="mt-3 text-sm leading-relaxed text-[#c0b4a3]">
           {pending === "paid"
-            ? "This confirms payment, deducts the ordered stock once, and queues the customer’s confirmation email."
+            ? order?.source === "invoice" ? "This confirms payment and queues the customer’s confirmation email. Custom invoice records do not change website stock." : "This confirms payment, deducts the ordered stock once, and queues the customer’s confirmation email."
             : pending === "cancel"
-              ? "This releases the stock reservation. Check your bank first if the customer reported payment. It does not refund a transfer."
+              ? order?.source === "invoice" ? "This closes the custom order. Check your bank first if the customer reported payment. It does not refund a transfer or change website stock." : "This releases the stock reservation. Check your bank first if the customer reported payment. It does not refund a transfer."
               : pending === "ready_for_collection"
                 ? "Enter the number you wrote on the packed bag. We’ll email the customer this number and let them know their records are ready for collection."
                 : pending === "completed"

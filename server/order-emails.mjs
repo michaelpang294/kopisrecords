@@ -1,3 +1,4 @@
+import { isInvoice } from "./invoice-rules.mjs";
 import { orderPreorders } from "./preorders.mjs";
 import { randomUUID } from "node:crypto";
 import { createGmailSender, shopEmail } from "./gmail.mjs";
@@ -155,7 +156,7 @@ export function orderEmail(kind, order, link) {
     `${title} · ${money(item.price * item.quantity)}`,
     `Format: ${format}`,
     `Variant / pressing: ${variant}`,
-    `Product ID: ${item.id}`,
+    ...(isInvoice(order) ? [] : [`Product ID: ${item.id}`]),
     ...(cover ? [`Cover image: ${cover}`] : []),
     `Variant / pressing: ${variant}`,
     ...(item.preorder
@@ -166,6 +167,8 @@ export function orderEmail(kind, order, link) {
     order.fulfilment === "delivery" ? "Delivery" : "Self collection";
   const shop = kind === "shop_new_order";
   const { title, subject, paragraphs } = emailContent(kind, order);
+  if (isInvoice(order) && order.fulfilment === "delivery" && kind === "customer_payment_confirmed")
+    paragraphs[2] = "We’ll pack your records and email you once your order has been mailed out. We’ll contact you on Telegram or by phone if we need to confirm delivery details.";
   if (order.items.some((item) => item.preorder) && ["customer_payment_reported", "customer_payment_confirmed"].includes(kind)) {
     const hold = "Your complete order, including any in-stock records, will be held until all preorder items are ready. Expected arrival dates are estimates. We’ll email you separately when the full order is ready for collection or has been dispatched.";
     if (kind === "customer_payment_confirmed") paragraphs[2] = hold;

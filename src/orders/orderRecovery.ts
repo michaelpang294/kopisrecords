@@ -1,5 +1,9 @@
 import type { PreorderLine } from "../preorders/PreorderProgress";
 export type RecoveredOrder = {
+  source?: "invoice";
+  invoiceId?: string;
+  invoiceDetailsConfirmed?: boolean;
+  customerNote?: string;
   preorders?: PreorderLine[];
   reference: string;
   subtotal: number;
@@ -16,6 +20,9 @@ export type RecoveredOrder = {
     id: number;
     title: string;
     artist?: string;
+    medium?: string;
+    variant?: string;
+    cover_image?: string;
     quantity: number;
     price: number;
   }[];

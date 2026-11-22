@@ -5,6 +5,7 @@ export type Product = {
   price: number;
   genre: string;
   cover_image: string;
+  images?: string[] | string | null;
   medium: string;
   description: string;
   released: string;

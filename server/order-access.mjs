@@ -1,3 +1,4 @@
+import { assertInvoiceDetails } from "./invoice-rules.mjs";
 import { queueOrderEmails } from "./order-emails.mjs";
 import { createHash, randomBytes } from "node:crypto";
 const tokenPattern = /^[a-f0-9]{64}$/;
@@ -53,33 +54,7 @@ export function recoveryRoutes(
   };
   app.use("/api/order-recovery", limitReads);
   app.use("/api/checkout/:id", limitReads);
-  async function find(db, req) {
-    const token = req.get("Authorization")?.replace(/^Bearer /, "");
-    if (!tokenPattern.test(token || "")) {
-      const e = new Error("Order link not found.");
-      e.status = 404;
-      throw e;
-    }
-    const [access] = await db.execute(
-      "SELECT order_id FROM checkout_order_recovery WHERE token_hash = ?",
-      [hash(token)],
-    );
-    if (!access.length) {
-      const e = new Error("Order link not found.");
-      e.status = 404;
-      throw e;
-    }
-    const [rows] = await db.execute(
-      "SELECT * FROM checkout_orders WHERE id = ?",
-      [access[0].order_id],
-    );
-    if (!rows.length) {
-      const e = new Error("Order link not found.");
-      e.status = 404;
-      throw e;
-    }
-    return rows[0];
-  }
+  const find = (db, req) => orderForToken(db, req.get("Authorization")?.replace(/^Bearer /, ""));
   async function receipt(db, row) {
     const result = await orderResponse(db, row);
     const [fulfilment] = await db.execute(
@@ -130,6 +105,7 @@ export function recoveryRoutes(
           e.status = 409;
           throw e;
         }
+        assertInvoiceDetails(current);
         await db.execute(
           "UPDATE checkout_reservations SET state = 'reported' WHERE order_id = ? AND state = 'active'",
           [row.id],
@@ -198,4 +174,31 @@ export function recoveryRoutes(
       }
     },
   );
+}
+
+export async function orderForToken(db, token) {
+  if (!tokenPattern.test(token || "")) {
+    const e = new Error("Order link not found.");
+    e.status = 404;
+    throw e;
+  }
+  const [access] = await db.execute(
+    "SELECT order_id FROM checkout_order_recovery WHERE token_hash = ?",
+    [hash(token)],
+  );
+  if (!access.length) {
+    const e = new Error("Order link not found.");
+    e.status = 404;
+    throw e;
+  }
+  const [rows] = await db.execute(
+    "SELECT * FROM checkout_orders WHERE id = ?",
+    [access[0].order_id],
+  );
+  if (!rows.length) {
+    const e = new Error("Order link not found.");
+    e.status = 404;
+    throw e;
+  }
+  return rows[0];
 }

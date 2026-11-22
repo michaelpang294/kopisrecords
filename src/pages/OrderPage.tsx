@@ -1,6 +1,8 @@
+import InvoiceItems from "../invoices/InvoiceItems";
+import { invoiceDate } from "../invoices/invoiceTypes";
 import PreorderProgress from "../preorders/PreorderProgress";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { API } from "../admin/adminApi";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
@@ -144,6 +146,9 @@ export default function OrderPage() {
               : order?.status === "cancelled"
                 ? "This order is closed. Do not pay its QR. If you already transferred money, contact us."
                 : "Do not pay an expired QR. If you already paid, contact us with your reference. Please don’t pay again.";
+  if (order?.source === "invoice" && !order.invoiceDetailsConfirmed && order.status === "awaiting_payment_confirmation")
+    return <Navigate to={`/invoice#token=${token}`} replace />;
+  const customInvoice = order?.source === "invoice";
   return (
     <>
       <main
@@ -201,14 +206,13 @@ export default function OrderPage() {
               <section className="rounded-xl border border-white/10 bg-[#211b16]/95 p-5 sm:p-6">
                 <h2 className="font-marcellus text-2xl">
                   {activeHold
-                    ? labels.awaiting_payment_confirmation
-                    : labels[order.status] || "Your hold has expired"}
+                    ? customInvoice ? "Payment for your invoice" : labels.awaiting_payment_confirmation
+                    : customInvoice && order.status === "expired" ? "Your invoice has expired" : labels[order.status] || "Your hold has expired"}
                 </h2>
                 {activeHold ? (
                   <>
                     <p role="timer" className="mt-3 text-sm text-[#cbb79c]">
-                      Time remaining: {Math.floor(seconds / 60)}:
-                      {String(seconds % 60).padStart(2, "0")}
+                      {customInvoice && order.expiresAt ? `Pay and report by ${invoiceDate(order.expiresAt)}` : <>Time remaining: {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</>}
                     </p>
                     <p className="mt-3 text-sm text-[#c0b4a3]">
                       PayNow to{" "}
@@ -233,9 +237,7 @@ export default function OrderPage() {
                       </>
                     )}
                     <p className="mt-3 text-xs leading-relaxed text-[#c0b4a3]">
-                      Report payment before the hold ends. A saved QR may still
-                      accept money after expiry; do not use it once the hold
-                      ends.
+                      {customInvoice ? "After paying, press ‘I’ve made payment’ before the invoice expires. A saved QR may still accept money after expiry; please don’t use it once this invoice closes." : "Report payment before the hold ends. A saved QR may still accept money after expiry; do not use it once the hold ends."}
                     </p>
                     <button
                       disabled={busy}
@@ -282,7 +284,7 @@ export default function OrderPage() {
                 <p className="mt-3 break-all text-sm text-[#cbb79c]">
                   {order.reference}
                 </p>
-                <ul className="mt-5 divide-y divide-white/10">
+                {customInvoice ? <div className="mt-5"><InvoiceItems items={order.items} /></div> : <ul className="mt-5 divide-y divide-white/10">
                   {order.items.map((item) => (
                     <li
                       key={item.id}
@@ -301,7 +303,7 @@ export default function OrderPage() {
                       </span>
                     </li>
                   ))}
-                </ul>
+                </ul>}
                 <dl className="mt-5 space-y-3 text-sm">
                   <div className="flex justify-between">
                     <dt>Records</dt>

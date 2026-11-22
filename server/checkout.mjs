@@ -1,3 +1,4 @@
+import { isInvoice, assertInvoiceDetails } from "./invoice-rules.mjs";
 import { hasPreorderTag, registerPreorders, orderPreorders } from "./preorders.mjs";
 import { queueOrderEmails } from "./order-emails.mjs";
 import { grantRecovery } from "./order-access.mjs";
@@ -310,6 +311,7 @@ export function checkoutRoutes(app, pool, emails) {
           e.status = 409;
           throw e;
         }
+        assertInvoiceDetails(current);
         await db.execute(
           "UPDATE checkout_reservations SET state = 'reported' WHERE order_id = ? AND state = 'active'",
           [req.params.id],
@@ -385,7 +387,7 @@ export async function orderResponse(db, row) {
     status,
     serverTime: new Date().toISOString(),
     qr:
-      status === "awaiting_payment_confirmation"
+      status === "awaiting_payment_confirmation" && (!isInvoice(order) || order.invoiceDetailsConfirmed)
         ? await QRCode.toDataURL(paynowPayload(order.total, order.reference), {
             width: 480,
             margin: 4,
@@ -398,7 +400,7 @@ export async function orderResponse(db, row) {
 export async function expireOrders(pool) {
   await transaction(pool, (db) =>
     db.execute(
-      "UPDATE checkout_orders o SET o.status = 'expired' WHERE o.status = 'awaiting_payment_confirmation' AND EXISTS (SELECT 1 FROM checkout_reservations r WHERE r.order_id = o.id AND r.state = 'active' AND r.expires_at <= NOW(3))",
+      "UPDATE checkout_orders o SET o.status = 'expired' WHERE o.status = 'awaiting_payment_confirmation' AND (EXISTS (SELECT 1 FROM checkout_reservations r WHERE r.order_id = o.id AND r.state = 'active' AND r.expires_at <= NOW(3)) OR EXISTS (SELECT 1 FROM custom_invoices i WHERE i.id = o.id AND i.expires_at <= NOW(3)))",
     ),
   );
 }
@@ -424,24 +426,28 @@ export async function manageOrder(pool, action, reference) {
         throw Error(
           "Only payment_reported orders can be marked paid. Expired/legacy orders need manual stock reconciliation; do not force them through.",
         );
-      if (!holds.length || holds.some((h) => h.state !== "reported"))
-        throw Error(
-          "Active reported holds are missing; investigate before marking paid.",
-        );
-      for (const hold of holds) {
-        const [result] = await db.execute(
-          "UPDATE stock SET stock = stock - ? WHERE id = ? AND stock >= ?",
-          [hold.quantity, hold.product_id, hold.quantity],
-        );
-        if (result.affectedRows !== 1)
+      const manualInvoice = isInvoice(details) && details.invoiceId === row.id;
+      if (manualInvoice) assertInvoiceDetails(details);
+      if (!manualInvoice) {
+        if (!holds.length || holds.some((h) => h.state !== "reported"))
           throw Error(
-            "Physical stock changed. No changes were saved; reconcile the order manually.",
+            "Active reported holds are missing; investigate before marking paid.",
           );
+        for (const hold of holds) {
+          const [result] = await db.execute(
+            "UPDATE stock SET stock = stock - ? WHERE id = ? AND stock >= ?",
+            [hold.quantity, hold.product_id, hold.quantity],
+          );
+          if (result.affectedRows !== 1)
+            throw Error(
+              "Physical stock changed. No changes were saved; reconcile the order manually.",
+            );
+        }
+        await db.execute(
+          "UPDATE checkout_reservations SET state = 'committed' WHERE order_id = ?",
+          [row.id],
+        );
       }
-      await db.execute(
-        "UPDATE checkout_reservations SET state = 'committed' WHERE order_id = ?",
-        [row.id],
-      );
       await db.execute(
         "UPDATE checkout_orders SET status = 'paid' WHERE id = ?",
         [row.id],
@@ -451,7 +457,9 @@ export async function manageOrder(pool, action, reference) {
         [row.id, "paid"],
       );
       await queueOrderEmails(db, row.id, "confirmed");
-      return `Marked ${details.reference} paid and deducted stock once. Confirmation email queued.`;
+      return manualInvoice
+        ? `Marked ${details.reference} paid. Custom invoice: website stock unchanged. Confirmation email queued.`
+        : `Marked ${details.reference} paid and deducted stock once. Confirmation email queued.`;
     }
     if (row.status === "paid")
       throw Error(

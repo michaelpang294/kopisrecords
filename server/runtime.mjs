@@ -1,3 +1,5 @@
+import { ensureProductImages } from "./product-images.mjs";
+import { ensureInvoices } from "./invoices.mjs";
 import { ensurePreorders } from "./preorders.mjs";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -42,7 +44,9 @@ export function databasePool(env = process.env, connectionLimit = 5) {
 }
 export async function prepareSchema(pool) {
   await pool.execute("SELECT id,title,artist,price,genre,cover_image,description,medium,variant,released,barcode,stock,tags FROM stock LIMIT 1");
+  await ensureProductImages(pool);
   await ensureOrders(pool);
+  await ensureInvoices(pool);
   await ensureOrderEmails(pool);
   await ensurePreorders(pool);
   await ensureRecordRequests(pool);

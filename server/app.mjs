@@ -1,3 +1,6 @@
+import { tagEditorRoutes } from "./tag-editor.mjs";
+import { validateProductImages, productImages } from "./product-images.mjs";
+import { invoiceRoutes, createInvoiceDispatcher } from "./invoices.mjs";
 import { preorderCatalog, preorderRoutes, createPreorderDispatcher } from "./preorders.mjs";
 import { createOrderEmailDispatcher } from "./order-emails.mjs";
 import { createRestockDispatcher, restockAlertRoutes } from "./restock-alerts.mjs";
@@ -30,6 +33,7 @@ const columns = [
   "barcode",
   "stock",
   "tags",
+  "images",
 ];
 const textLimits = {
   title: 255,
@@ -45,6 +49,7 @@ const textLimits = {
 const allowedMethods = new Set(["GET", "POST", "PUT", "DELETE", "OPTIONS"]);
 
 const allowedTags = new Set([
+  "local",
   "preorder",
   "new_arrival",
   "recommended",
@@ -72,8 +77,14 @@ function productForJson(row, publicApiUrl) {
     );
     if (match) cover = `${publicApiUrl.replace(/\/$/, "")}/covers/${match[1]}`;
   }
+  const imageUrl = (url) => {
+    if (publicApiUrl) return url.replace(/^(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/(?:api\/)?covers\//, publicApiUrl.replace(/\/$/, "") + "/covers/");
+    return /^\/(?:api\/)?covers\//.test(url) ? `http://localhost:${process.env.API_PORT || 3001}/api/covers/` + url.replace(/^\/(?:api\/)?covers\//, "") : url;
+  };
+  if (typeof cover === "string") cover = imageUrl(cover);
   return {
     ...row,
+    ...(row.images !== undefined ? { images: productImages(row.images).map(imageUrl) } : {}),
     cover_image: cover,
     price: Number(row.price),
     tags: readTags(row.tags) ?? [],
@@ -98,8 +109,8 @@ function validateProduct(body, creating = false) {
   if (!product.title || !product.artist) {
     throw new Error("Title and artist are required.");
   }
-  if (!["Vinyl", "CD"].includes(product.medium)) {
-    throw new Error("Medium must be Vinyl or CD.");
+  if (!["Vinyl", "CD", "Zine"].includes(product.medium)) {
+    throw new Error("Medium must be Vinyl, CD or Zine.");
   }
 
   // The edit form sends numeric values as strings, so accept both forms.
@@ -134,6 +145,7 @@ function validateProduct(body, creating = false) {
     }
     product.tags = JSON.stringify(tags);
   }
+  if (body.images !== undefined) product.images = JSON.stringify(validateProductImages(body.images));
   return product;
 }
 
@@ -228,6 +240,11 @@ export function createApp(pool, origins, options = {}) {
     issueLink: (id) => grantRecovery(pool, id),
   });
   app.locals.orderEmails = orderEmails;
+  const invoiceEmails = createInvoiceDispatcher(pool, {
+    mailer: options.invoiceMailer || options.orderMailer,
+    siteUrl: options.orderSiteUrl,
+  });
+  app.locals.invoiceEmails = invoiceEmails;
   const preorderEmails = createPreorderDispatcher(pool, {
     mailer: options.preorderMailer || options.orderMailer,
     siteUrl: options.orderSiteUrl,
@@ -235,6 +252,7 @@ export function createApp(pool, origins, options = {}) {
   });
   app.locals.preorderEmails = preorderEmails;
   const requireAdmin = installAdminAuth(app, options);
+  tagEditorRoutes(app, pool, requireAdmin, { transaction, allowedTags });
   const restockAlerts = createRestockDispatcher(pool, {
     transaction,
     availableStock,
@@ -254,6 +272,7 @@ export function createApp(pool, origins, options = {}) {
     orderEmails,
   });
   checkoutRoutes(app, pool, orderEmails);
+  invoiceRoutes(app, pool, requireAdmin, { dispatcher: invoiceEmails, siteUrl: options.orderSiteUrl });
 
   app.get("/api/health", async (req, res) => {
     await pool.execute("SELECT 1 AS ok");
@@ -300,13 +319,14 @@ export function createApp(pool, origins, options = {}) {
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
-    const fields = columns.map((column) => `\`${column}\``).join(", ");
-    const placeholders = columns.map(() => "?").join(", ");
+    const insertColumns = columns.filter(column => column !== "images" || product.images !== undefined);
+    const fields = insertColumns.map((column) => `\`${column}\``).join(", ");
+    const placeholders = insertColumns.map(() => "?").join(", ");
     const [result] = await pool.execute(
       `INSERT INTO stock (${fields}) VALUES (${placeholders})`,
-      columns.map((column) => product[column]),
+      insertColumns.map((column) => product[column]),
     );
-    res.status(201).json(productForJson({ id: result.insertId, ...product }));
+    res.status(201).json(productForJson({ id: result.insertId, ...product }, options.publicApiUrl));
   });
 
   app.post("/api/admin/stock/:id", requireAdmin, async (req, res, next) => {
@@ -331,7 +351,7 @@ export function createApp(pool, origins, options = {}) {
           req.body.stock,
           id,
         ]);
-        return productForJson({ ...product, stock: req.body.stock });
+        return productForJson({ ...product, stock: req.body.stock }, options.publicApiUrl);
       });
       restockAlerts.kick();
       res.json(saved);
@@ -359,7 +379,7 @@ export function createApp(pool, origins, options = {}) {
       if (req.body.expectedStock !== undefined)
         await guardStock(db, id, req.body.expectedStock, product.stock);
       const updateColumns = columns.filter(
-        (column) => column !== "tags" || product.tags !== undefined,
+        (column) => (column !== "tags" || product.tags !== undefined) && (column !== "images" || product.images !== undefined),
       );
       const fields = updateColumns
         .map((column) => `\`${column}\` = ?`)
@@ -383,7 +403,7 @@ export function createApp(pool, origins, options = {}) {
         error.status = 404;
         throw error;
       }
-      return productForJson(savedRows[0]);
+      return productForJson(savedRows[0], options.publicApiUrl);
     };
     const saved =
       req.body.expectedStock === undefined

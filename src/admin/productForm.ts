@@ -1,3 +1,4 @@
+import { readProductImages } from "../products/productImages";
 import type { Product } from "../scripts/product";
 import { readRecordTags } from "./recordTagOptions";
 export type ProductForm = {
@@ -6,6 +7,7 @@ export type ProductForm = {
   price: string;
   genre: string;
   cover_image: string;
+  images: string;
   description: string;
   medium: string;
   variant: string;
@@ -21,6 +23,7 @@ export function emptyProduct(): ProductForm {
     price: "",
     genre: "",
     cover_image: "",
+    images: "",
     description: "",
     medium: "Vinyl",
     variant: "",
@@ -37,6 +40,7 @@ export function productForm(product: Product): ProductForm {
     price: String(product.price),
     genre: product.genre || "",
     cover_image: product.cover_image || "",
+    images: readProductImages(product.images).join("\n"),
     description: product.description || "",
     medium: product.medium,
     variant: product.variant || "",
@@ -55,6 +59,7 @@ export function productPayload(form: ProductForm) {
     throw Error("Stock must be a whole number of zero or more.");
   return {
     ...form,
+    images: [...new Set(form.images.split(/\r?\n/).map(url => url.trim()).filter(Boolean))],
     title: form.title.trim(),
     artist: form.artist.trim(),
     price: Number(form.price),

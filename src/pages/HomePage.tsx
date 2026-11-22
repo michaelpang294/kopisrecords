@@ -1,9 +1,13 @@
-import { isPreorder } from "../scripts/preorder";
+import { isZine } from "../products/zineProduct";
+import { isPreorder, preorderRelease } from "../scripts/preorder";
+import { readRecordTags } from "../admin/recordTagOptions";
 import { API } from "../api";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Footer from "../footer";
 import ZineShowcase from "../components/ZineShowcase";
+import LocalFeature from "../components/LocalFeature";
+import { localFeature, findLocalFeatureProduct } from "../scripts/localFeature";
 import { weeklyPicks } from "../scripts/weeklyPicks";
 import type { Product } from "../scripts/product";
 import hero from "../assets/backgrounds/front-slide-bg.png";
@@ -61,10 +65,15 @@ function RecordCard({ product, editorial = false }: { product: Product; editoria
         >
           {[product.medium, product.variant].filter(Boolean).join(" · ")}
         </p>
+        {isPreorder(product) && (
+          <p className={`${type.meta} mt-0 mb-3 text-[#cbb79c]`}>
+            {preorderRelease(product.released)}
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-1">
           <strong className={type.ui}>{money(Number(product.price))}</strong>
           <span className={`${type.meta} text-[#c0b4a3]`}>
-            {isPreorder(product) ? "Preorder" : Number(product.stock) > 0 ? "In stock" : "Sold out"}
+            {isPreorder(product) ? Number(product.stock) > 0 ? "Preorder" : "Preorders closed" : Number(product.stock) > 0 ? "In stock" : "Sold out"}
           </span>
         </div>
           </>
@@ -106,19 +115,24 @@ export default function HomePage() {
   const vinyl = products.filter(
     (p) => !/\b(cd|cassette|dvd)\b/i.test(p.medium || ""),
   );
-  const unique = vinyl.filter(
-    (p, i, all) =>
-      all.findIndex(
-        (other) =>
-          `${other.artist}|${other.title}`.toLowerCase() ===
-          `${p.artist}|${p.title}`.toLowerCase(),
-      ) === i,
-  );
-  // The supplied API has no arrival timestamp: newest numeric IDs are used here.
-  const arrivals = [...unique]
+  // Filter first so an unavailable pressing cannot hide an eligible copy.
+  const newestAlbums = (records: Product[]) => [...records]
     .sort((a, b) => Number(b.id) - Number(a.id))
+    .filter((product, index, all) =>
+      all.findIndex((other) =>
+        `${other.artist}|${other.title}`.toLowerCase() ===
+        `${product.artist}|${product.title}`.toLowerCase(),
+      ) === index,
+    )
     .slice(0, 4);
+  const arrivals = newestAlbums(vinyl.filter((product) =>
+    Number(product.stock) > 0 &&
+    !isPreorder(product) &&
+    readRecordTags(product.tags).some((tag) => tag.trim().toLowerCase() === "new_arrival"),
+  ));
+  const upcoming = newestAlbums(products.filter(isPreorder));
   const curated = weeklyPicks(products);
+  const featuredLocal = findLocalFeatureProduct(products, localFeature);
   return (
     <>
       <div
@@ -200,7 +214,7 @@ export default function HomePage() {
               </div>
               <Link
                 className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`}
-                to="/shop?sort=newest"
+                to="/shop?tag=new_arrival&stock=in&sort=newest"
               >
                 View all ↗
               </Link>
@@ -247,6 +261,52 @@ export default function HomePage() {
               </p>
             )}
           </section>
+          <LocalFeature key={featuredLocal?.id ?? "local-feature"} product={featuredLocal} feature={localFeature} />
+          <section
+            className="border-t border-[#ffffff18] mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px] scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px]"
+            id="upcoming-releases"
+            aria-labelledby="upcoming-title"
+          >
+            <div className="mb-[30px] flex items-end justify-between gap-6 [&_p:first-child]:mb-2.5 max-[640px]:mb-6 max-[640px]:flex-col max-[640px]:items-start max-[640px]:gap-3">
+              <div>
+                <p className={`${type.eyebrow} mt-0 mb-[18px] text-[#cbb79c]`}>
+                  On the horizon
+                </p>
+                <h2 className={`${type.sectionTitle} m-0`} id="upcoming-title">
+                  Upcoming releases
+                </h2>
+                <p className={`${type.body} mt-3.5 mb-0 max-w-[480px] text-[#c0b4a3]`}>
+                  A few future favourites to look forward to.
+                </p>
+              </div>
+              <Link
+                className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`}
+                to="/shop?tag=preorder&stock=all"
+              >
+                View all preorders ↗
+              </Link>
+            </div>
+            {loading ? (
+              <p role="status" className={`${type.body} py-10 text-[#c0b4a3]`}>
+                Checking what’s on the way…
+              </p>
+            ) : error ? (
+              <p role="status" className={`${type.body} py-10 text-[#c0b4a3]`}>
+                We couldn’t load upcoming releases right now. Use “Try again” above to reload the records.
+              </p>
+            ) : upcoming.length ? (
+              <div className="grid grid-cols-4 gap-7 max-[1000px]:grid-cols-2 max-[1000px]:gap-5 max-[640px]:gap-x-3.5 max-[640px]:gap-y-7">
+                {upcoming.map((product) => (
+                  <RecordCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <p className={`${type.body} py-10 text-[#c0b4a3]`}>
+                New preorders will appear here soon. Check back for what’s next.
+              </p>
+            )}
+          </section>
+          <ZineShowcase product={products.find(isZine)} />
           {!loading && !error && curated.length > 0 && (
             <section
               className="border-y border-[#ffffff0c] bg-[#211b16]"
@@ -270,7 +330,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <Link
-                    to="/shop?sort=record_of_the_week"
+                    to="/blog"
                     className={`${type.ui} inline-block border-b border-[#cbb79c66] py-2 hover:!text-[#cbb79c]`}
                   >
                     See more from our blog ↗
@@ -284,7 +344,6 @@ export default function HomePage() {
               </div>
             </section>
           )}
-          <ZineShowcase />
           <section
             className="grid grid-cols-2 items-center gap-20 border-t border-[#ffffff18] max-[1000px]:gap-9 max-[640px]:grid-cols-1 max-[640px]:gap-7 mx-auto w-[calc(100%-80px)] max-w-[1320px] max-[1000px]:w-[calc(100%-48px)] max-[640px]:w-[calc(100%-36px)] min-[1800px]:w-[calc(100%-120px)] min-[1800px]:max-w-[1440px] scroll-mt-[100px] py-[72px] max-[1000px]:py-14 max-[640px]:py-[42px]"
             aria-labelledby="about-title"

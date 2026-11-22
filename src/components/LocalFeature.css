@@ -1,0 +1,56 @@
+.local-feature-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  grid-template-areas: "cover title" "cover description" "cover buy" "tracks .";
+  column-gap: 64px;
+  row-gap: 24px;
+  align-items: start;
+}
+.local-feature-title { grid-area: title; }
+.local-feature-cover { grid-area: cover; }
+.local-feature-description { grid-area: description; }
+.local-feature-tracks { grid-area: tracks; }
+.local-feature-buy { grid-area: buy; }
+@media (max-width: 1000px) {
+  .local-feature-layout { column-gap: 36px; }
+}
+@media (max-width: 640px) {
+  .local-feature-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "title title"
+      "cover tracks"
+      "description description"
+      "buy buy";
+    column-gap: 16px;
+    row-gap: 20px;
+  }
+
+  .local-feature-cover {
+    width: 100%;
+    max-width: 200px;
+    justify-self: start;
+  }
+
+  .local-feature-tracks {
+    min-width: 0;
+    align-self: start;
+  }
+
+  .local-feature-tracks button {
+    gap: 6px;
+    padding: 8px 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .local-feature-tracks button > span:first-child {
+    width: 18px;
+  }
+
+  .local-feature-tracks button svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+}

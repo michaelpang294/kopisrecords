@@ -1,4 +1,5 @@
 export const recordTags = [
+  { value: "local", label: "Local" },
   { value: "preorder", label: "Preorder" },
   { value: "new_arrival", label: "New arrival" },
   { value: "recommended", label: "Recommended" },

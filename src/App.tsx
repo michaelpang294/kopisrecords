@@ -15,6 +15,7 @@ import CartPage from "./pages/CartPage";
 
 import CheckoutPage from "./pages/CheckoutPage";
 import OrderPage from "./pages/OrderPage";
+import InvoicePage from "./pages/InvoicePage";
 import StockAlertPage from "./pages/StockAlertPage";
 import { discardLegacyOrderHistory } from "./orders/orderRecovery";
 
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order" element={<OrderPage />} />
+        <Route path="/invoice" element={<InvoicePage />} />
         <Route path="/stock-alert" element={<StockAlertPage />} />
         <Route path="/orders" element={<Navigate to="/shop" replace />} />
 

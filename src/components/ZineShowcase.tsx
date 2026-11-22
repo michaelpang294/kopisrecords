@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import type { Product } from "../scripts/product";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { typography as type } from "../styles/typography";
@@ -15,7 +17,7 @@ const slides = [zine1, zine2, zine3, zine4, zine5, zine6, zine7, zine8, zine9];
 const control =
   "grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-full border border-[#cbb79c55] bg-[#15120fd9] text-[#efe8dc] transition-colors hover:bg-[#49392b]";
 
-export default function ZineShowcase() {
+export default function ZineShowcase({ product }: { product?: Product }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -73,6 +75,7 @@ export default function ZineShowcase() {
         <p className={`${type.body} mt-0 mb-7 max-w-[460px] text-[#c0b4a3]`}>
           Only <strong>$4 each</strong>. Sold at our cost price.
         </p>
+        <Link to={product ? `/shop/product/${product.id}` : "/shop?format=zine&stock=all"} className={`${type.ui} mr-5 inline-flex min-h-12 items-center justify-center gap-5 rounded-[3px] bg-[#cbb79c] px-5 py-3 !text-[#15120f] hover:bg-[#dfcdb3]`}>Shop the zine · $4 <span aria-hidden="true">↗</span></Link>
         <a
           href="https://www.instagram.com/p/Dc8BMV8kbr3/?utm_source=ig_web_copy_link&obrf=MzRlODBiNWFlZA==&srtk=MzRlODBiNWFlZA=="
           target="_blank"

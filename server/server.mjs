@@ -10,7 +10,7 @@ try {
   await prepareSchema(pool);
   await expireOrders(pool);
 } catch (error) {
-  console.error("Database/configuration startup failed:", error.code || error.message);
+  console.error("Database/configuration startup failed:", error.code, error.message);
   if (pool) await pool.end();
   process.exit(1);
 }
@@ -40,10 +40,12 @@ expiryTimer?.unref();
 app.locals.orderEmails.kick();
 app.locals.restockAlerts.kick();
 app.locals.preorderEmails.kick();
+app.locals.invoiceEmails.kick();
 const emailTimer = cronMode ? null : setInterval(() => {
   app.locals.orderEmails.kick();
   app.locals.restockAlerts.kick();
   app.locals.preorderEmails.kick();
+  app.locals.invoiceEmails.kick();
 }, 30000);
 emailTimer?.unref();
 // Passenger binds its own socket; local development still uses loopback.
@@ -70,6 +72,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       await app.locals.orderEmails.stop();
       await app.locals.restockAlerts.stop();
       await app.locals.preorderEmails.stop();
+      await app.locals.invoiceEmails.stop();
       await pool.end();
       process.exit(0);
     }),

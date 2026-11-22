@@ -1,4 +1,4 @@
-import { ClipboardList, Plus, Disc3, Package, Inbox } from "lucide-react";
+import { ClipboardList, Plus, Disc3, Package, Inbox, Receipt, Tags } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { NavLink, useParams } from "react-router-dom";
 import Footer from "../footer";
@@ -7,15 +7,19 @@ import CreateProductSection from "../actions/CreateProduct";
 import UpdateProductSection from "../actions/UpdateProduct";
 import StockLevelsSection from "../actions/StockLevels";
 import PreordersSection from "../admin/PreordersSection";
+import InvoicesSection from "../admin/InvoicesSection";
 import OrdersSection from "../admin/OrdersSection";
+import TagEditor from "../admin/TagEditor";
 import RequestsSection from "../admin/RequestsSection";
 import { API, adminJson } from "../admin/adminApi";
 const links = [
+  { label: "Create invoice", icon: Receipt, to: "/admin/invoices" },
   { label: "Orders", icon: ClipboardList, to: "/admin/orders" },
   { label: "Preorders", icon: Package, to: "/admin/preorders" },
   { label: "Requests", icon: Inbox, to: "/admin/requests" },
   { label: "Add record", icon: Plus, to: "/admin/create" },
   { label: "Edit records", icon: Disc3, to: "/admin/edit" },
+  { label: "Tag Editor", icon: Tags, to: "/admin/tags" },
   { label: "Stock", icon: Package, to: "/admin/stock" },
 ];
 export default function AdminPage() {
@@ -173,7 +177,7 @@ export default function AdminPage() {
               <div className="grid items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
                 <nav
                   aria-label="Admin navigation"
-                  className="sticky top-[57px] z-30 grid grid-cols-3 sm:grid-cols-6 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
+                  className="sticky top-[57px] z-30 grid grid-cols-3 sm:grid-cols-4 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
                 >
                   {links.map((link) => (
                     <NavLink
@@ -189,7 +193,9 @@ export default function AdminPage() {
                   ))}
                 </nav>
                 <div className="min-w-0">
-                  {action === "preorders" ? (
+                  {action === "invoices" ? (
+                    <InvoicesSection />
+                  ) : action === "preorders" ? (
                     <PreordersSection />
                   ) : action === "requests" ? (
                     <RequestsSection />
@@ -197,6 +203,8 @@ export default function AdminPage() {
                     <CreateProductSection />
                   ) : action === "edit" ? (
                     <UpdateProductSection />
+                  ) : action === "tags" ? (
+                    <TagEditor />
                   ) : action === "stock" ? (
                     <StockLevelsSection />
                   ) : (

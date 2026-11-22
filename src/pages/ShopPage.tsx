@@ -31,6 +31,7 @@ const tagSortOptions = [
 ] as const;
 
 const tagLabels: Record<string, string> = {
+  local: "Local",
   new_arrival: "New Arrival",
   record_of_the_week: "Record of the Week",
   recommended: "Recommended",

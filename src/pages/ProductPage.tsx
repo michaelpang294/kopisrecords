@@ -1,3 +1,4 @@
+import ProductGallery from "../components/ProductGallery";
 import { arrivalDate, progressLabels, mixedOrderNotice } from "../preorders/PreorderProgress";
 import { API } from "../api";
 import { useEffect, useState } from "react";
@@ -218,7 +219,7 @@ function ProductDetails({ id }: { id?: string }) {
               {/* COVER */}
               <div className="col-start-1 row-start-1 min-w-0 lg:sticky lg:top-[105px]">
                 <div className="rounded-md border border-white/10 bg-[#211b16]/70 p-1.5 sm:p-3 lg:p-6">
-                  <Cover key={product.id} product={product} />
+                  <ProductGallery key={product.id} product={product} />
                 </div>
               </div>
 
@@ -377,7 +378,7 @@ function ProductDetails({ id }: { id?: string }) {
                       <h2
                         className={`${type.itemTitle} m-0 mb-3 max-lg:text-base! max-lg:leading-6`}
                       >
-                        About this record
+                        {product.medium === "Zine" ? "About this zine" : "About this record"}
                       </h2>
                       <p
                         className={`${type.body} m-0 whitespace-pre-line text-[#c0b4a3] [overflow-wrap:anywhere] max-lg:text-sm max-lg:leading-[22px]`}
@@ -396,7 +397,7 @@ function ProductDetails({ id }: { id?: string }) {
                         ["Format", product.medium],
                         ["Pressing", product.variant],
                         ["Released", product.released],
-                        ["Barcode", product.barcode],
+                        [product.medium === "Zine" ? "Product code" : "Barcode", product.barcode],
                       ]
                         .filter(([, value]) => Boolean(value))
                         .map(([label, value]) => (

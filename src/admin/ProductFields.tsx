@@ -1,8 +1,26 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import type { ProductForm } from "./productForm";
 import { adminField, adminPanel } from "./productForm";
 import { isPreorder } from "../scripts/preorder";
 import RecordTags from "./RecordTags";
+
+function CoverPreview({ src }: { src: string }) {
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
+  if (!src) return null;
+  if (!/^https?:\/\//i.test(src) && !/^\/(?!\/)/.test(src)) {
+    return <p className="mt-2 text-xs text-[#f0b8a8]">Use a public http/https image URL or a path starting with /.</p>;
+  }
+  return (
+    <div className="mt-3" aria-live="polite">
+      {status !== "failed" && (
+        <img src={src} alt="Cover image preview" referrerPolicy="no-referrer" onLoad={() => setStatus("ready")} onError={() => setStatus("failed")} className="block h-36 w-36 rounded-md border border-white/15 bg-[#15120f] object-contain" />
+      )}
+      <p className={`mt-2 text-xs ${status === "failed" ? "text-[#f0b8a8]" : "text-[#c0b4a3]"}`}>
+        {status === "failed" ? "Couldn’t load this image. Check that the link opens an image directly and is publicly accessible." : status === "ready" ? "Image loaded successfully." : "Loading image preview…"}
+      </p>
+    </div>
+  );
+}
 export default function ProductFields({
   value,
   onChange,
@@ -62,6 +80,7 @@ export default function ProductFields({
             >
               <option value="Vinyl">Vinyl</option>
               <option value="CD">CD</option>
+              <option value="Zine">Zine</option>
             </select>
           </label>
           {field("variant", "Pressing / variant", {
@@ -117,11 +136,19 @@ export default function ProductFields({
             maxLength: 100,
             placeholder: "Scan or enter barcode",
           })}
+          <div className="min-w-0">
           {field("cover_image", "Cover image URL", {
             maxLength: 2048,
             inputMode: "url",
             placeholder: "https://…",
           })}
+          <CoverPreview key={value.cover_image.trim()} src={value.cover_image.trim()} />
+          </div>
+          <label className="block text-sm text-[#c0b4a3] sm:col-span-2">
+            Additional product photos (one URL per line)
+            <textarea name="images" rows={4} value={value.images} onChange={e => onChange({ ...value, images: e.target.value })} className={adminField} placeholder={"https://…/back-cover.jpg\nhttps://…/vinyl.jpg"} />
+            <span className="mt-2 block text-xs">Optional, up to 20 extra photos. The cover image appears first. Use public image URLs.</span>
+          </label>
           <label className="block text-sm text-[#c0b4a3] sm:col-span-2">
             Description
             <textarea
