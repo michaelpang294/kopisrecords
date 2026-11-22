@@ -1,6 +1,7 @@
+import AdminActions from "../admin/AdminActions";
 import { ClipboardList, Plus, Disc3, Package, Inbox, Receipt, Tags } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Footer from "../footer";
 import background from "../assets/backgrounds/second-slide-bg.png";
 import CreateProductSection from "../actions/CreateProduct";
@@ -175,23 +176,7 @@ export default function AdminPage() {
                 </p>
               )}
               <div className="grid items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
-                <nav
-                  aria-label="Admin navigation"
-                  className="sticky top-[57px] z-30 grid grid-cols-3 sm:grid-cols-4 gap-1 rounded-xl border border-white/10 bg-[#211b16]/95 p-1.5 backdrop-blur-xl sm:top-[81px] lg:top-24 lg:grid-cols-1"
-                >
-                  {links.map((link) => (
-                    <NavLink
-                      key={link.to}
-                      to={link.to}
-                      className={({ isActive }) =>
-                        `inline-flex min-h-14 flex-col gap-1 items-center justify-center rounded-lg px-1 py-3 text-center text-xs sm:text-sm lg:flex-row lg:gap-3 lg:justify-start lg:px-4 ${isActive || (link.to === "/admin/orders" && !action) ? "bg-[#cbb79c] text-[#15120f]" : "border border-white/10 bg-[#211b16] text-[#c0b4a3] hover:text-[#efe8dc]"}`
-                      }
-                    >
-                      <link.icon size={17} aria-hidden="true" />
-                      {link.label}
-                    </NavLink>
-                  ))}
-                </nav>
+                <AdminActions key={action || "orders"} action={action} links={links} />
                 <div className="min-w-0">
                   {action === "invoices" ? (
                     <InvoicesSection />

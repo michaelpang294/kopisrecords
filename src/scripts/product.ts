@@ -1,5 +1,6 @@
 export type Product = {
   id: number;
+  created_at?: string | null;
   title: string;
   artist: string;
   price: number;

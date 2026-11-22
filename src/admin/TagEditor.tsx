@@ -1,3 +1,5 @@
+import "./TagEditor.css";
+import { Disc3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Product } from "../scripts/product";
 import { adminJson } from "./adminApi";
@@ -6,6 +8,17 @@ import { readRecordTags, recordTags } from "./recordTagOptions";
 import useUnsavedChanges from "./useUnsavedChanges";
 
 type Change = "keep" | "add" | "remove";
+function RecordThumbnail({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  return src && !failed
+    ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} className="h-14 w-14 shrink-0 rounded-md bg-[#15120f] object-cover sm:h-16 sm:w-16" />
+    : <span className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-[#15120f] text-[#cbb79c] sm:h-16 sm:w-16"><Disc3 size={24} aria-hidden="true" /></span>;
+}
+function dateAdded(value?: string | null) {
+  if (!value) return "Not recorded";
+  const date = new Date(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? value.replace(" ", "T") + "Z" : value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Singapore" });
+}
 const editableTags = recordTags.filter(tag => tag.value !== "preorder");
 export default function TagEditor() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,14 +65,14 @@ export default function TagEditor() {
     finally { setBusy(false); }
   }
   return (
-    <section aria-labelledby="tag-editor-title">
+    <section className="tag-editor" aria-labelledby="tag-editor-title">
       <h2 id="tag-editor-title" className="mb-2 font-marcellus text-2xl sm:text-3xl">Tag Editor</h2>
       <p className="mb-5 text-sm text-[#c0b4a3]">Select records, choose tags to add or remove, then save once. All other tags stay unchanged.</p>
       <fieldset disabled={busy || loading} className="min-w-0 space-y-4">
         <div className={adminPanel}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm">Search records<input className={adminField} value={query} onChange={event => setQuery(event.target.value)} placeholder="Album, artist, variant or barcode" /></label>
-            <label className="text-sm">Filter records<select className={adminField} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All records</option><option value="not-preorder">Exclude preorders</option>{recordTags.map(tag => <option key={tag.value} value={tag.value}>{tag.label}</option>)}</select></label>
+            <label className="block min-w-0 text-sm">Search records<input className={adminField} value={query} onChange={event => setQuery(event.target.value)} placeholder="Album, artist, variant or barcode" /></label>
+            <label className="block min-w-0 text-sm">Filter records<select className={adminField} value={filter} onChange={event => setFilter(event.target.value)}><option value="">All records</option><option value="not-preorder">Exclude preorders</option>{recordTags.map(tag => <option key={tag.value} value={tag.value}>{tag.label}</option>)}</select></label>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
             <button type="button" className={adminButton} disabled={!matches.length} onClick={() => setSelected(current => allMatching ? current.filter(id => !matches.some(product => product.id === id)) : [...new Set([...current, ...matches.map(product => product.id)])])}>{allMatching ? "Deselect matching" : `Select all matching (${matches.length})`}</button>
@@ -68,15 +81,16 @@ export default function TagEditor() {
           </div>
         </div>
         <div className={`${adminPanel} max-h-[440px] overflow-y-auto`} aria-label="Records to tag">
-          {matches.map(product => <label key={product.id} className="flex cursor-pointer items-start gap-3 border-b border-white/10 py-3 last:border-0">
+          {matches.map(product => <label key={product.id} className={`mb-2 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors motion-reduce:transition-none ${selected.includes(product.id) ? "border-[#cbb79c]/70 bg-[#cbb79c]/15" : "border-white/10 bg-[#15120f]/30 hover:bg-white/5"}`}>
             <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[#cbb79c]" checked={selected.includes(product.id)} onChange={event => setSelected(current => event.target.checked ? [...current, product.id] : current.filter(id => id !== product.id))} />
-            <span className="min-w-0 text-sm"><strong>{product.artist} — {product.title}</strong><span className="block text-xs text-[#c0b4a3]">#{product.id} · {[product.medium, product.variant].filter(Boolean).join(" · ")}</span><span className="mt-1 block text-xs text-[#cbb79c]">{readRecordTags(product.tags).map(tag => recordTags.find(option => option.value === tag)?.label || tag).join(" · ") || "No tags"}</span></span>
+            <RecordThumbnail key={product.cover_image} src={product.cover_image} />
+            <span className="min-w-0 text-sm [overflow-wrap:anywhere]"><strong>{product.artist} — {product.title}</strong><span className="block text-xs text-[#c0b4a3]">{[product.medium, product.variant].filter(Boolean).join(" · ")}</span><span className="mt-1 block text-xs text-[#c0b4a3]">Date added: {dateAdded(product.created_at)}</span><span className="mt-1 block text-xs text-[#cbb79c]">{readRecordTags(product.tags).map(tag => recordTags.find(option => option.value === tag)?.label || tag).join(" · ") || "No tags"}</span></span>
           </label>)}
           {!loading && !matches.length && <p className="text-sm text-[#c0b4a3]">No matching records.</p>}
         </div>
         <div className={adminPanel}>
           <h3 className="mb-3 font-marcellus text-xl">Changes for selected records</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{editableTags.map(tag => <label key={tag.value} className="text-sm">{tag.label}<select className={adminField} value={changes[tag.value] || "keep"} onChange={event => setChanges(current => ({ ...current, [tag.value]: event.target.value as Change }))}><option value="keep">Keep unchanged</option><option value="add">Add tag</option><option value="remove">Remove tag</option></select></label>)}</div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{editableTags.map(tag => <label key={tag.value} className="block min-w-0 text-sm">{tag.label}<select className={adminField} value={changes[tag.value] || "keep"} onChange={event => setChanges(current => ({ ...current, [tag.value]: event.target.value as Change }))}><option value="keep">Keep unchanged</option><option value="add">Add tag</option><option value="remove">Remove tag</option></select></label>)}</div>
           <p className="mt-3 text-xs text-[#c0b4a3]">To retire older arrivals: filter New arrival → select records → New arrival: Remove tag. Preorder status is managed in Edit records; exclude preorders before adding New arrival.</p>
         </div>
       </fieldset>
